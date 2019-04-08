@@ -1,9 +1,3 @@
-#include <sstream>
-#include <vector>
-#include <iterator>
-#include <unordered_map>
-#include <algorithm>
-#include <utility>
 #include "board.h"
 
 void Board::init()

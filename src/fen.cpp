@@ -91,7 +91,7 @@ namespace fen
 		}
 	}
 
-	// Split the fen string into a vector guarnateed to be length 6.
+	// Split the fen string into a vector guaranteed to be length 6.
 	std::vector<std::string> fen_str_to_vec(std::string fen_string)
 	{
 		std::vector<std::string> fen_vec(6);
