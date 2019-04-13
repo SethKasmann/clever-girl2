@@ -1,6 +1,7 @@
 #ifndef BOARD_H
 #define BOARD_H
 
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <array>

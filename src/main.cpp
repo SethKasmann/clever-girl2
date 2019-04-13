@@ -1,6 +1,7 @@
 #include <iostream>
 #include "board.h"
 #include "fen.h"
+#include "move_generator.h"
 
 int main(int argc, char* argv[]) 
 {

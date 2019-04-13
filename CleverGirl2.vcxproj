@@ -21,12 +21,17 @@
   <ItemGroup>
     <ClCompile Include="src\board.cpp" />
     <ClCompile Include="src\fen.cpp" />
+    <ClCompile Include="src\magic_moves.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\assert.h" />
     <ClInclude Include="src\bitboard.h" />
     <ClInclude Include="src\board.h" />
     <ClInclude Include="src\fen.h" />
+    <ClInclude Include="src\magic_moves.h" />
+    <ClInclude Include="src\move.h" />
+    <ClInclude Include="src\move_generator.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
