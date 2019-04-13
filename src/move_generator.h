@@ -70,11 +70,11 @@ public:
 
 		// Pawn attacks left.
 		uint64_t pawn_left_attack_mask = move_pawns(pawn_mask & ~bitboard::a_file, enemy_mask, forward_delta + 1, generator);
-		push_pawn_moves(pawn_left_attack_mask, forward_delta);
+		push_pawn_moves(pawn_left_attack_mask, forward_delta + 1);
 
 		// Pawn attacks right.
 		uint64_t pawn_right_attack_mask = move_pawns(pawn_mask & ~bitboard::h_file, enemy_mask, forward_delta - 1, generator);
-		push_pawn_moves(pawn_right_attack_mask, forward_delta);
+		push_pawn_moves(pawn_right_attack_mask, forward_delta - 1);
 	}
 
 	void generate_pawn_moves()
