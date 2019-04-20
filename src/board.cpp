@@ -2,7 +2,7 @@
 
 void Board::init()
 {
-	wtm = true;
+	player = Player::white;
 	pieces.fill({});
 	occupancy.fill({});
 	en_passant = 0ull;

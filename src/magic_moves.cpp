@@ -33,6 +33,7 @@
   */
 
 #include "magic_moves.h"
+#include "bitboard.h"
 
 #ifdef _MSC_VER
 #pragma message("MSC compatible compiler detected -- turning off warning 4312,4146")
@@ -53,6 +54,9 @@
  //C64(0x00FFFCDDFCED714A) - A8 11 bit
  //C64(0x007FFCDDFCED714A) - B8 10 bit
  //C64(0x003FFFCDFFD88096) - C8 10 bit
+
+// Move masks for pawns.
+U64 magic_moves_p_mask[2][64];
 
  // Move masks for knights.
 const U64 magic_moves_n_mask[64] =
@@ -505,6 +509,9 @@ void initmagicmoves(void)
 			}
 #endif
 		}
+		U64 bit = bitboard::get_bitboard(i);
+		magic_moves_p_mask[0][i] = (bit & ~bitboard::h_file) << 7 | (bit & ~bitboard::a_file) << 9;
+		magic_moves_p_mask[1][i] = (bit & ~bitboard::h_file) >> 9 | (bit & ~bitboard::a_file) >> 7;
 	}
 }
 

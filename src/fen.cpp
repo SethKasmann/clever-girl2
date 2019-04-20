@@ -3,6 +3,8 @@
 #include <unordered_map>
 
 #include "fen.h"
+#include "bitboard.h"
+#include "piece.h"
 
 namespace fen
 {
@@ -62,30 +64,37 @@ namespace fen
 	// Active color. "w" means White moves next, "b" means Black moves next.
 	void set_side_to_move(Board& board, const std::string& side_to_move)
 	{
-		board.wtm = side_to_move[0] == 'w';
+		board.player = side_to_move[0] == 'w' ? Player::white : Player::black;
 	}
 
 	// Piece placement (from White's perspective).
 	void set_board_pieces(Board& board, const std::string& piece_placement)
 	{
 		int current_square = 63;
-		const std::unordered_map<char, int> piece_to_index
+		const std::unordered_map<char, Piece> char_to_piece
 		{
-			{ 'p', 0 }, { 'n', 1 }, { 'b', 2 }, { 'r', 3 }, { 'q', 4 }, { 'k', 5 }
+			{ 'p', Piece::pawn }, { 'n', Piece::knight }, { 'b', Piece::bishop }, { 'r', Piece::rook }, { 'q', Piece::queen }, { 'k', Piece::king }
 		};
 		for (auto c : piece_placement)
 		{
 			if (c == '/') continue;
 			if (isdigit(c))
 			{
-				current_square -= c - '0';
+				int empty_squares = c - '0';
+				for (int i = 0; i < empty_squares; ++i)
+				{
+					board.board[current_square] = Piece::none;
+					current_square -= 1;
+				}
 			}
 			else
 			{
-				int color_index = islower(c) > 0;
-				int piece_index = piece_to_index.at(tolower(c));
-				board.pieces[color_index][piece_index] |= 1ull << current_square;
-				board.occupancy[color_index] |= 1ull << current_square;
+				Player player = isupper(c) > 0 ? Player::white : Player::black;
+				Piece piece = char_to_piece.at(tolower(c));
+				uint64_t square_mask = bitboard::get_bitboard(current_square);
+				board.pieces[piece] |= square_mask;
+				board.occupancy[player] |= square_mask;
+				board.board[current_square] = piece;
 				current_square -= 1;
 			}
 		}

@@ -50,5 +50,11 @@
     <ClInclude Include="src\magic_moves.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\piece.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\player.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

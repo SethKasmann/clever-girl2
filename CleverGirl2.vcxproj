@@ -32,6 +32,8 @@
     <ClInclude Include="src\magic_moves.h" />
     <ClInclude Include="src\move.h" />
     <ClInclude Include="src\move_generator.h" />
+    <ClInclude Include="src\piece.h" />
+    <ClInclude Include="src\player.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -101,6 +103,9 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
