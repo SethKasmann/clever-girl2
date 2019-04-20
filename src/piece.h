@@ -5,14 +5,14 @@
 
 enum Piece
 {
-	none,
-	pawn,
-	knight,
-	bishop,
-	rook,
-	queen,
-	king,
-	count
+    none,
+    pawn,
+    knight,
+    bishop,
+    rook,
+    queen,
+    king,
+    count
 };
 
 #endif

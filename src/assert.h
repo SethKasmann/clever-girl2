@@ -5,13 +5,13 @@
 #define ASSERT(condition, object, message) \
 do \
 { \
-	if (!condition) \
-	{ \
-		std::cerr << "Assertion \"" #condition "\" failed in " << __FILE__ \
-			<< " on line " << __LINE__ << std::endl \
-			<< message << std::endl \
+    if (!condition) \
+    { \
+        std::cerr << "Assertion \"" #condition "\" failed in " << __FILE__ \
+            << " on line " << __LINE__ << std::endl \
+            << message << std::endl \
             << object << std::endl; \
-	} \
+    } \
 } while (false)
 #else
 #define ASSERT(condition, message) do {} while (false)

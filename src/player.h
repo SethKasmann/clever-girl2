@@ -3,13 +3,13 @@
 
 enum Player
 {
-	white,
-	black
+    white,
+    black
 };
 
 inline Player operator!(Player player)
 {
-	return static_cast<Player>(!static_cast<bool>(player));
+    return static_cast<Player>(!static_cast<bool>(player));
 }
 
 #endif

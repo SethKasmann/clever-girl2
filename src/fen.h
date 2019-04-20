@@ -7,7 +7,7 @@
 
 namespace fen
 {
-	Board create_board(std::string fen_string);
+    Board create_board(std::string fen_string);
 }
 
 #endif
