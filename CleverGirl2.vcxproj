@@ -32,6 +32,7 @@
     <ClInclude Include="src\magic_moves.h" />
     <ClInclude Include="src\move.h" />
     <ClInclude Include="src\move_generator.h" />
+    <ClInclude Include="src\move_list.h" />
     <ClInclude Include="src\piece.h" />
     <ClInclude Include="src\player.h" />
   </ItemGroup>

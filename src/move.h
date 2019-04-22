@@ -21,7 +21,7 @@ inline bool operator==(const Move& m1, const Move& m2)
 
 inline std::ostream& operator<<(std::ostream& o, const Move& move)
 {
-    o << "From: " << move.from << " To: " << move.to << " Promotion: " << move.promotion << " Castle: " << std::boolalpha << move.castle;
+    o << "<Move " << &move << " from: " << move.from << " to: " << move.to << " promotion: " << move.promotion << " castle: " << std::boolalpha << move.castle << ">";
     return o;
 }
 

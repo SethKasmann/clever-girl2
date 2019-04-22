@@ -56,5 +56,8 @@
     <ClInclude Include="src\player.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\move_list.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

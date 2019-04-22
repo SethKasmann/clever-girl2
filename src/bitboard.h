@@ -15,6 +15,8 @@ namespace bitboard
 
     constexpr uint64_t rank_1 = 0x00000000000000ff;
     constexpr uint64_t rank_2 = 0x000000000000ff00;
+    constexpr uint64_t rank_3 = 0x0000000000ff0000;
+    constexpr uint64_t rank_6 = 0x0000ff0000000000;
     constexpr uint64_t rank_7 = 0x00ff000000000000;
     constexpr uint64_t rank_8 = 0xff00000000000000;
 
@@ -43,7 +45,7 @@ namespace bitboard
 
     inline int get_rank(uint64_t bitboard)
     {
-        ASSERT(pop_count(bitboard) == 1, bitboard, "Attempting to get_rank with a pop count != 1.");
+        ASSERT(pop_count(bitboard) == 1, &bitboard, "Attempting to get_rank with a pop count != 1.");
         return get_lsb(bitboard) / 8;
     }
 
@@ -176,6 +178,7 @@ namespace bitboard
         uint64_t mask = get_bitboard(square);
         return north_fill(mask) | south_fill(mask) | east_fill(mask) | west_fill(mask);
     }
+
 }
 
 #endif

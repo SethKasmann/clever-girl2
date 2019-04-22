@@ -1,4 +1,5 @@
 #include "board.h"
+#include "move.h"
 
 void Board::init()
 {
@@ -9,4 +10,5 @@ void Board::init()
     castle_rights = 0;
     halfmove_clock = 0;
     fullmove_number = 0;
+    last_move = null_move;
 }

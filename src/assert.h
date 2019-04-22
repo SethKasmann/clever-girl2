@@ -1,6 +1,8 @@
 #ifndef ASSERT_H
 #define ASSERT_H
 
+#include <assert.h>
+
 #ifndef NDEBUG
 #define ASSERT(condition, object, message) \
 do \
@@ -11,6 +13,7 @@ do \
             << " on line " << __LINE__ << std::endl \
             << message << std::endl \
             << object << std::endl; \
+        assert(false); \
     } \
 } while (false)
 #else
