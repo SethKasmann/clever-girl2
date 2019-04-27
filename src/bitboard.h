@@ -7,6 +7,7 @@
 #include <string>
 
 #include "assert.h"
+#include "magic_moves.h"
 
 namespace bitboard
 {
@@ -19,6 +20,25 @@ namespace bitboard
     constexpr uint64_t rank_6 = 0x0000ff0000000000;
     constexpr uint64_t rank_7 = 0x00ff000000000000;
     constexpr uint64_t rank_8 = 0xff00000000000000;
+
+    static uint64_t rook_attacks[64];
+    static uint64_t bishop_attacks[64];
+    static uint64_t between_mask[64][64];
+
+    inline uint64_t between_horizonal(int square0, int square1)
+    {
+        return between_mask[square0][square1] & rook_attacks[square0];
+    }
+
+    inline uint64_t between_diagonal(int square0, int square1)
+    {
+        return between_mask[square0][square1] & bishop_attacks[square0];
+    }
+
+    inline uint64_t between(int square0, int square1)
+    {
+        return between_mask[square0][square1];
+    }
 
     inline int get_lsb(uint64_t bitboard)
     {
@@ -60,7 +80,7 @@ namespace bitboard
     {
         const std::string bar = " +---+---+---+---+---+---+---+---+";
 
-        std::cout << bar;
+        std::cout << bar << std::endl;
 
         for (int i = 63; i >= 0; --i)
         {
@@ -77,106 +97,29 @@ namespace bitboard
         }
     }
 
-    inline
-        uint64_t north_fill(uint64_t gen)
+    inline void init()
     {
-        gen |= (gen << 8);
-        gen |= (gen << 16);
-        gen |= (gen << 32);
-        return gen;
-    }
-
-    inline
-        uint64_t south_fill(uint64_t gen)
-    {
-        gen |= (gen >> 8);
-        gen |= (gen >> 16);
-        gen |= (gen >> 32);
-        return gen;
-    }
-
-    inline
-        uint64_t east_fill(uint64_t gen)
-    {
-        const uint64_t pr0 = ~h_file;
-        const uint64_t pr1 = pr0 & (pr0 << 1);
-        const uint64_t pr2 = pr1 & (pr1 << 2);
-        gen |= pr0 & (gen << 1);
-        gen |= pr1 & (gen << 2);
-        gen |= pr2 & (gen << 4);
-        return gen;
-    }
-
-    inline
-        uint64_t north_east_fill(uint64_t gen)
-    {
-        const uint64_t pr0 = ~h_file;
-        const uint64_t pr1 = pr0 & (pr0 << 9);
-        const uint64_t pr2 = pr1 & (pr1 << 18);
-        gen |= pr0 & (gen << 9);
-        gen |= pr1 & (gen << 18);
-        gen |= pr2 & (gen << 36);
-        return gen;
-    }
-
-    inline
-        uint64_t south_east_fill(uint64_t gen)
-    {
-        const uint64_t pr0 = ~h_file;
-        const uint64_t pr1 = pr0 & (pr0 >> 7);
-        const uint64_t pr2 = pr1 & (pr1 >> 14);
-        gen |= pr0 & (gen >> 7);
-        gen |= pr1 & (gen >> 14);
-        gen |= pr2 & (gen >> 28);
-        return gen;
-    }
-
-    inline
-        uint64_t west_fill(uint64_t gen)
-    {
-        const uint64_t pr0 = ~a_file;
-        const uint64_t pr1 = pr0 & (pr0 >> 1);
-        const uint64_t pr2 = pr1 & (pr1 >> 2);
-        gen |= pr0 & (gen >> 1);
-        gen |= pr1 & (gen >> 2);
-        gen |= pr2 & (gen >> 4);
-        return gen;
-    }
-
-    inline
-        uint64_t south_west_fill(uint64_t gen)
-    {
-        const uint64_t pr0 = ~a_file;
-        const uint64_t pr1 = pr0 & (pr0 >> 9);
-        const uint64_t pr2 = pr1 & (pr1 >> 18);
-        gen |= pr0 & (gen >> 9);
-        gen |= pr1 & (gen >> 18);
-        gen |= pr2 & (gen >> 36);
-        return gen;
-    }
-
-    inline
-        uint64_t north_west_fill(uint64_t gen)
-    {
-        const uint64_t pr0 = ~a_file;
-        const uint64_t pr1 = pr0 & (pr0 << 7);
-        const uint64_t pr2 = pr1 & (pr1 << 14);
-        gen |= pr0 & (gen << 7);
-        gen |= pr1 & (gen << 14);
-        gen |= pr2 & (gen << 28);
-        return gen;
-    }
-
-    inline uint64_t get_diagonal_mask(int square)
-    {
-        uint64_t mask = get_bitboard(square);
-        return north_east_fill(mask) | north_west_fill(mask) | south_east_fill(mask) | south_west_fill(mask);
-    }
-
-    inline uint64_t get_horizontal_mask(int square)
-    {
-        uint64_t mask = get_bitboard(square);
-        return north_fill(mask) | south_fill(mask) | east_fill(mask) | west_fill(mask);
+        for (int i = 0; i < 64; ++i)
+        {
+            uint64_t i_mask = get_bitboard(i);
+            rook_attacks[i] = Rmagic(i, 0ull);
+            bishop_attacks[i] = Bmagic(i, 0ull);
+            for (int j = 0; j < 64; ++j)
+            {
+                uint64_t j_mask = get_bitboard(j);
+                // Set the between mask. QMagic cannot be used - two bits on the same horizonal plane may share
+                // diagonal bits and vice versa.
+                between_mask[i][j] = 0ull;
+                if (rook_attacks[i] & j_mask)
+                {
+                    between_mask[i][j] |= Rmagic(i, i_mask | j_mask) & Rmagic(j, i_mask | j_mask);
+                }
+                if (bishop_attacks[i] & j_mask)
+                {
+                    between_mask[i][j] |= Bmagic(i, i_mask | j_mask) & Bmagic(j, i_mask | j_mask);
+                }
+            }
+        }
     }
 
 }

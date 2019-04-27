@@ -3,6 +3,8 @@
 
 #include <assert.h>
 
+#define NDEBUG
+
 #ifndef NDEBUG
 #define ASSERT(condition, object, message) \
 do \

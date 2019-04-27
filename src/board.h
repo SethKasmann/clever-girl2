@@ -75,6 +75,16 @@ struct Board
             || (MoveGenerator::generate_moves<Piece::king>(get_occupied_mask(), square, player) & get_piece_mask(Piece::king, !player));
     }
 
+    bool is_attacked(int square, Player player, uint64_t occupancy) const
+    {
+        return (MoveGenerator::generate_moves<Piece::pawn>(occupancy, square, player) & get_piece_mask(Piece::pawn, !player))
+            || (MoveGenerator::generate_moves<Piece::knight>(occupancy, square, player) & get_piece_mask(Piece::knight, !player))
+            || (MoveGenerator::generate_moves<Piece::bishop>(occupancy, square, player) & get_piece_mask(Piece::bishop, !player))
+            || (MoveGenerator::generate_moves<Piece::rook>(occupancy, square, player) & get_piece_mask(Piece::rook, !player))
+            || (MoveGenerator::generate_moves<Piece::queen>(occupancy, square, player) & get_piece_mask(Piece::queen, !player))
+            || (MoveGenerator::generate_moves<Piece::king>(occupancy, square, player) & get_piece_mask(Piece::king, !player));
+    }
+
     bool is_move_legal(Move move) const
     {
         // Check the basics.

@@ -11,14 +11,12 @@ struct PerftResult
     int captures;
     int ep;
     int castles;
-    int checks;
     PerftResult& operator+=(const PerftResult& perft_result)
     {
         nodes += perft_result.nodes;
         captures += perft_result.captures;
         ep += perft_result.ep;
         castles += perft_result.castles;
-        checks += perft_result.checks;
         return *this;
     }
 };
@@ -29,52 +27,40 @@ std::ostream& operator<<(std::ostream& o, const PerftResult& perft_result)
         << " nodes: " << perft_result.nodes << ", "
         << " captures: " << perft_result.captures << ", "
         << " ep: " << perft_result.ep << ", "
-        << " castles: " << perft_result.castles << ", "
-        << " checks: " << perft_result.checks << " >";
+        << " castles: " << perft_result.castles << " >";
     return o;
 }
 
-PerftResult perft(Board& board, int depth)
+PerftResult perft(const Board& board, int depth)
 {
     if (depth == 0)
     {
-        return { 1, 0, 0, 0, 0 };
+        return { 1, 0, 0, 0 };
     }
-    PerftResult result = { 0, 0, 0, 0, 0 };
+    PerftResult result = { 0, 0, 0, 0 };
     MoveList move_list = MoveList(board);
-    while (1)
+    Move move = move_list.get_move(board);
+    for (; !(move == null_move); move = move_list.get_move(board))
     {
-        Move move = move_list.get_move(board);
-        if (move == null_move)
+        if (depth == 1)
         {
-            break;
+            result.nodes++;
+            if (board.board[move.to] != Piece::none)
+            {
+                result.captures++;
+            }
+            else if (move.castle)
+            {
+                result.castles++;
+            }
+            else if (bitboard::get_bitboard(move.to) == board.en_passant && board.get_piece(move.from) == Piece::pawn)
+            {
+                result.ep++;
+            }
+            continue;
         }
         Board new_board = board;
         new_board.make_move(move);
-        if (new_board.is_illegal())
-        {
-            continue;
-        }
-        if (depth == 1 && board.board[move.to] != Piece::none)
-        {
-            result.captures += 1;
-        }
-        if (bitboard::get_bitboard(move.to) == board.en_passant && board.get_piece(move.from) == Piece::pawn)
-        {
-            result.ep += 1;
-        }
-        //std::cout << new_board << std::endl;
-        if (depth == 1)
-        {
-            if (new_board.is_attacked(bitboard::get_lsb(new_board.get_piece_mask(Piece::king, new_board.player)), new_board.player))
-            {
-                result.checks += 1;
-            }
-            if (move.castle)
-            {
-                result.castles += 1;
-            }
-        }
         result += perft(new_board, depth - 1);
     }
     return result;
@@ -83,9 +69,9 @@ PerftResult perft(Board& board, int depth)
 int main(int argc, char* argv[])
 {
     MoveGenerator::init();
-    std::cout << std::is_pod<Board>::value << std::endl;
-    Board board = fen::create_board("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
-    PerftResult result = perft(board, 2);
+    bitboard::init();
+    Board board = fen::create_board("8/8/2k5/5q2/5n2/8/5K2/8 b - - 0 1");
+    PerftResult result = perft(board, 4);
     std::cout << result << std::endl;
     int z;
     std::cin >> z;
