@@ -110,7 +110,12 @@ public:
         push_moves<Piece::queen>(board);
     }
 
-    Move get_move(const Board& board)
+    size_t size() const
+    {
+        return _move_list.size();
+    }
+
+    Move get_move()
     {
         while (_move_list.size() > 0)
         {

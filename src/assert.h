@@ -19,7 +19,7 @@ do \
     } \
 } while (false)
 #else
-#define ASSERT(condition, message) do {} while (false)
+#define ASSERT(condition, object, message) do {} while (false)
 #endif
 
 #endif

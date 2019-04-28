@@ -110,7 +110,7 @@ namespace fen
         return fen_vec;
     }
 
-    Board create_board(std::string fen_string)
+    Board create_board(const std::string& fen_string)
     {
         Board board;
         board.init();
