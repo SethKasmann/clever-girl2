@@ -73,7 +73,7 @@ public:
         : _nodes_expected(0ull), _nodes(0ull), _depth(0), _milliseconds(0)
     { }
 
-    PerftTest(const std::string& fen, int depth, int nodes_expected)
+    PerftTest(const std::string& fen, int depth, uint64_t nodes_expected)
         : PerftTest()
     {
         _fen = fen;

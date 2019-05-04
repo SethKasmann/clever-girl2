@@ -3,7 +3,6 @@
 #include <unordered_map>
 
 #include "fen.h"
-#include "bitboard.h"
 #include "piece.h"
 
 namespace fen

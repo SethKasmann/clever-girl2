@@ -12,6 +12,7 @@ struct MoveGenerator
     template<Piece P>
     static uint64_t generate_moves(uint64_t occupancy_mask, int square, Player player = Player::white)
     {
+        static_assert(P >= Piece::pawn || P <= Piece::king);
         switch (P)
         {
         case Piece::pawn:

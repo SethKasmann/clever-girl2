@@ -15,4 +15,19 @@ enum Piece
     count
 };
 
+inline constexpr bool operator==(Piece first, Piece second)
+{
+    return static_cast<int>(first) == static_cast<int>(second);
+}
+
+inline constexpr bool operator>=(Piece first, Piece second)
+{
+    return static_cast<int>(first) >= static_cast<int>(second);
+}
+
+inline constexpr bool operator<=(Piece first, Piece second)
+{
+    return static_cast<int>(first) <= static_cast<int>(second);
+}
+
 #endif

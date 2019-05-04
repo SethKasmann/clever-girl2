@@ -9,7 +9,7 @@ enum Player
     black
 };
 
-inline Player operator!(Player player)
+inline constexpr Player operator!(Player player)
 {
     return static_cast<Player>(!static_cast<bool>(player));
 }
