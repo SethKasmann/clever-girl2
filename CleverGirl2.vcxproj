@@ -36,6 +36,7 @@
     <ClInclude Include="src\move_list.h" />
     <ClInclude Include="src\perft.h" />
     <ClInclude Include="src\piece.h" />
+    <ClInclude Include="src\piece_list.h" />
     <ClInclude Include="src\player.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

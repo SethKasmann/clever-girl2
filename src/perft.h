@@ -122,7 +122,7 @@ public:
     }
 };
 
-inline uint64_t perft(const Board& board, int depth)
+inline uint64_t perft(Board& board, int depth)
 {
     if (depth == 0)
     {
@@ -140,9 +140,10 @@ inline uint64_t perft(const Board& board, int depth)
     Move move = move_list.get_move();
     for (; move != null_move; move = move_list.get_move())
     {
-        Board copy = board;
-        copy.make_move(move);
-        nodes += perft(copy, depth - 1);
+        //Board copy = board;
+        board.make_move(move);
+        nodes += perft(board, depth - 1);
+        board.unmake_move();
     }
     return nodes;
 }

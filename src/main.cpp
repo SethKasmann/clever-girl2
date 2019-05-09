@@ -9,6 +9,7 @@
 
 int main(int argc, char* argv[])
 {
+    std::cout << std::is_pod<Board>::value << '\n';
     MoveGenerator::init();
     bitboard::init();
     perft_fast();

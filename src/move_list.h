@@ -26,12 +26,14 @@ private:
     uint64_t _double_push_rank;
     uint64_t _valid_attack_mask;
     uint64_t _valid_quiet_mask;
+    uint64_t _opponent_attack_mask;
     int _forward_delta;
     Generator _generator;
 public:
     MoveList(const Board& board)
-        : _check_mask(0ull), _pin_mask(0ull), _double_push_rank(0ull), _valid_attack_mask(0ull), _valid_quiet_mask(0ull), _size(0)
+        : _check_mask(0ull), _pin_mask(0ull), _double_push_rank(0ull), _valid_attack_mask(0ull), _valid_quiet_mask(0ull), _size(0), _num_checkers(0)
     {
+        _opponent_attack_mask = board.get_attack_mask(!board.player, board.get_occupied_mask() ^ board.get_piece_mask<Piece::king>(board.player));
         _double_push_rank = board.player == Player::white ? bitboard::rank_3 : bitboard::rank_6;
         // The amount of shift needed for a pawn push from white's point of view.
         _forward_delta = board.player == Player::white ? 8 : -8;
@@ -40,17 +42,22 @@ public:
             std::function<uint64_t(uint64_t, int)>{[](uint64_t mask, int shift) { return mask << shift; }}: 
             std::function<uint64_t(uint64_t, int)>{[](uint64_t mask, int shift) { return mask >> shift; }};
 
-        set_check_mask(board);
-        _num_checkers = bitboard::pop_count(_check_mask);
+        if (_opponent_attack_mask & board.get_piece_mask<Piece::king>(board.player))
+        {
+            set_check_mask(board);
+            _num_checkers = bitboard::pop_count(_check_mask);
+        }
 
         // Handle king moves.
-        _valid_attack_mask = board.get_occupied_mask(!board.player);
-        _valid_quiet_mask = board.get_empty_mask();
+        _valid_attack_mask = ~_opponent_attack_mask & board.get_occupied_mask(!board.player);
+        _valid_quiet_mask = ~_opponent_attack_mask & board.get_empty_mask();
         push_moves<Piece::king>(board);
 
         if (_num_checkers == 0)
         {
             // Try and push castle moves if we're not in check.
+            _valid_attack_mask = board.get_occupied_mask(!board.player);
+            _valid_quiet_mask = board.get_empty_mask();
             generate_castle_moves(board);
         }
         else if (_num_checkers == 1)
@@ -69,7 +76,7 @@ public:
         generate_pinned_piece_moves(board);
 
         // Normal Moves.
-        generate_pawn_moves(board);
+        all_pawn_moves(board);
         push_moves<Piece::knight>(board);
         push_moves<Piece::bishop>(board);
         push_moves<Piece::rook>(board);
@@ -252,6 +259,60 @@ public:
         push_all_pawn_moves(board.get_piece_mask<Piece::pawn>(board.player) & ~_pin_mask, _valid_quiet_mask, board.get_empty_mask());
     }
 
+    void all_pawn_moves(const Board& board)
+    {
+        uint64_t pawn_attacks_left = 0ull;
+        uint64_t pawn_attacks_right = 0ull;
+        uint64_t pawn_push = 0ull;
+        uint64_t pawn_dbl_push = 0ull;
+        uint64_t pawns = board.get_piece_mask<Piece::pawn>(board.player) & ~_pin_mask;
+
+        if (board.player == Player::white)
+        {
+            pawn_attacks_left = (pawns & ~bitboard::h_file) << 7 & (_valid_attack_mask | board.en_passant);
+            push_pawn_moves(pawn_attacks_left, 7);
+            pawn_attacks_right = (pawns & ~bitboard::a_file) << 9 & (_valid_attack_mask | board.en_passant);
+            push_pawn_moves(pawn_attacks_right, 9);
+            pawn_push = pawns << 8 & _valid_quiet_mask;
+            push_pawn_moves(pawn_push, 8);
+            pawn_dbl_push = (pawns << 8 & board.get_empty_mask() & _double_push_rank) << 8 & _valid_quiet_mask;
+            push_pawn_moves(pawn_dbl_push, 16);
+        }
+        else
+        {
+            pawn_attacks_left |= (pawns & ~bitboard::h_file) >> 9 & (_valid_attack_mask | board.en_passant);
+            push_pawn_moves(pawn_attacks_left, -9);
+            pawn_attacks_right |= (pawns & ~bitboard::a_file) >> 7 & (_valid_attack_mask | board.en_passant);
+            push_pawn_moves(pawn_attacks_right, -7);
+            pawn_push = pawns >> 8 & _valid_quiet_mask;
+            push_pawn_moves(pawn_push, -8);
+            pawn_dbl_push = (pawns >> 8 & board.get_empty_mask() & _double_push_rank) >> 8 & _valid_quiet_mask;
+            push_pawn_moves(pawn_dbl_push, -16);
+        }
+
+        // Confirm en passant moves don't leave the king in check.
+        if (board.en_passant &&
+            Pmagic(bitboard::get_lsb(board.en_passant), board.get_piece_mask<Piece::pawn>(board.player), !board.player))
+        {
+            int en_passant_square = bitboard::get_lsb(board.en_passant);
+            int king_square = bitboard::get_lsb(board.get_piece_mask<Piece::king>(board.player));
+            int delta = _forward_delta;
+            for (int i = 0; i < _size; ++i)
+            {
+                if (_move_list[i].to == en_passant_square && board.get_piece(_move_list[i].from) == Piece::pawn)
+                {
+                    // Adjust the occupany as if the en passant move is made.
+                    uint64_t adjusted_occupancy =
+                        board.get_occupied_mask() ^ (bitboard::get_bitboard(_move_list[i].from) | bitboard::get_bitboard(_move_list[i].to - delta) | board.en_passant);
+                    if (board.is_attacked(king_square, board.player, adjusted_occupancy))
+                    {
+                        _move_list[i] = _move_list[--_size];
+                    }
+                }
+            }
+        }
+    }
+
     template<Piece P>
     void push_moves(const Board & board)
     {
@@ -264,14 +325,6 @@ public:
             for (; move_mask; bitboard::pop_lsb(move_mask))
             {
                 int to_square = bitboard::get_lsb(move_mask);
-                if (P == Piece::king)
-                {
-                    // Confirm the king isn't moving into check.
-                    if (board.is_attacked(to_square, board.player, board.get_occupied_mask() ^ piece_mask))
-                    {
-                        continue;
-                    }
-                }
                 _move_list[_size++] = { from_square, to_square, Piece::none, false };
             }
         }
