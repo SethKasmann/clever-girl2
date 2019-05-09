@@ -123,7 +123,7 @@ void Board::make_move(Move move)
     Piece captured_piece = get_piece(move.to);
 
     // Create unmake.
-    Unmake unmake{ captured_piece, false, 0ull, 0, move };
+    Unmake unmake{ captured_piece, false, 0ull, 0 };
 
     uint64_t to_mask = bitboard::get_bitboard(move.to);
     uint64_t from_mask = bitboard::get_bitboard(move.from);
@@ -195,21 +195,21 @@ void Board::make_move(Move move)
     ASSERT(is_valid(), *this, "Board did not pass validation.");
 }
 
-void Board::unmake_move()
+void Board::unmake_move(Move move)
 {
     ASSERT(is_valid(), this, "Board did not pass validation.");
     Unmake unmake = unmake_stack.top();
-    Piece moved_piece = get_piece(unmake.move.to);
+    Piece moved_piece = get_piece(move.to);
 
     player = !player;
 
     // Unmake castle moves.
-    if (unmake.move.castle)
+    if (move.castle)
     {
-        bool is_kingside_castle = unmake.move.from > unmake.move.to;
+        bool is_kingside_castle = move.from > move.to;
 
-        int rook_from_square = is_kingside_castle ? unmake.move.to + 1 : unmake.move.to - 1;
-        int rook_to_square = is_kingside_castle ? unmake.move.to - 1 : unmake.move.to + 2;
+        int rook_from_square = is_kingside_castle ? move.to + 1 : move.to - 1;
+        int rook_to_square = is_kingside_castle ? move.to - 1 : move.to + 2;
 
         uint64_t rook_to_mask = bitboard::get_bitboard(rook_to_square);
         uint64_t rook_from_mask = bitboard::get_bitboard(rook_from_square);
@@ -221,20 +221,20 @@ void Board::unmake_move()
     }
     else if (unmake.en_passant)
     {
-        int en_passant_captured_square = unmake.move.from < unmake.move.to ? unmake.move.to - 8 : unmake.move.to + 8;
+        int en_passant_captured_square = move.from < move.to ? move.to - 8 : move.to + 8;
         uint64_t en_passant_captured_mask = bitboard::get_bitboard(en_passant_captured_square);
         occupancy[!player] ^= en_passant_captured_mask;
         pieces[Piece::pawn] ^= en_passant_captured_mask;
         board[en_passant_captured_square] = Piece::pawn;
     }
 
-    uint64_t to_mask = bitboard::get_bitboard(unmake.move.to);
-    uint64_t from_mask = bitboard::get_bitboard(unmake.move.from);
+    uint64_t to_mask = bitboard::get_bitboard(move.to);
+    uint64_t from_mask = bitboard::get_bitboard(move.from);
 
     occupancy[player] ^= to_mask | from_mask;
     pieces[moved_piece] ^= to_mask | from_mask;
-    board[unmake.move.to] = unmake.captured;
-    board[unmake.move.from] = moved_piece;
+    board[move.to] = unmake.captured;
+    board[move.from] = moved_piece;
 
     if (unmake.captured != Piece::none)
     {
@@ -242,11 +242,11 @@ void Board::unmake_move()
         pieces[unmake.captured] |= to_mask;
     }
 
-    if (unmake.move.promotion != Piece::none)
+    if (move.promotion != Piece::none)
     {
         pieces[Piece::pawn] ^= from_mask;
-        pieces[unmake.move.promotion] ^= from_mask;
-        board[unmake.move.from] = Piece::pawn;
+        pieces[move.promotion] ^= from_mask;
+        board[move.from] = Piece::pawn;
     }
 
     en_passant = unmake.en_passant_mask;
@@ -404,8 +404,8 @@ std::ostream& operator<<(std::ostream& o, Board board)
     o << '\n'
         << std::setw(20) << "en_passant: " << board.en_passant << ", as square: " << en_passant_square << '\n'
         << std::setw(20) << "halfmove_clock: " << board.halfmove_clock << '\n'
-        << std::setw(20) << "fullmove_number: " << board.fullmove_number << '\n'
-        << std::setw(20) << "last move: " << board.unmake_stack.top().move << '>';
+        << std::setw(20) << "fullmove_number: " << board.fullmove_number << '>';
+        //<< std::setw(20) << "last move: " << board.unmake_stack.top().move << '>';
 
     return o;
 }

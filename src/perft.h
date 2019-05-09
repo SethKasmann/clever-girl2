@@ -143,7 +143,7 @@ inline uint64_t perft(Board& board, int depth)
         //Board copy = board;
         board.make_move(move);
         nodes += perft(board, depth - 1);
-        board.unmake_move();
+        board.unmake_move(move);
     }
     return nodes;
 }

@@ -40,7 +40,6 @@ struct Unmake
     bool en_passant;
     uint64_t en_passant_mask;
     unsigned castle_rights;
-    Move move;
 };
 
 struct Board
@@ -87,7 +86,7 @@ struct Board
     bool can_castle_queenside() const;
     bool is_valid() const;
     void make_move(Move move);
-    void unmake_move();
+    void unmake_move(Move move);
     friend std::ostream& operator<<(std::ostream& o, Board board);
 };
 
