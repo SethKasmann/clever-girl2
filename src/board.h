@@ -17,10 +17,7 @@
 #include "move.h"
 #include "piece_list.h"
 
-//constexpr unsigned kingside_castle_white = 1;
-//constexpr unsigned queenside_castle_white = 2;
-//constexpr unsigned kingside_castle_black = 4;
-//constexpr unsigned queenside_castle_black = 8;
+
 
 static const std::array<unsigned, 64> castle_rights_mask =
 {
@@ -37,9 +34,9 @@ static const std::array<unsigned, 64> castle_rights_mask =
 struct Unmake
 {
     Piece captured;
-    bool en_passant;
-    uint64_t en_passant_mask;
+    int en_passant;
     unsigned castle_rights;
+    uint64_t key;
 };
 
 struct Board
@@ -49,12 +46,13 @@ struct Board
     std::array<uint64_t, Piece::count> pieces;
     std::array<Piece, 64> board;
     std::array<uint64_t, 2> occupancy;
-    //PieceListManager piece_list_manager;
-    uint64_t en_passant;
+    //PieceList piece_list;
+    int en_passant;
     unsigned castle_rights;
     int halfmove_clock;
     int fullmove_number;
     std::stack<Unmake> unmake_stack;
+    uint64_t key;
 
     template<Piece... P>
     uint64_t get_piece_mask() const noexcept
@@ -76,6 +74,8 @@ struct Board
     }*/
 
     Piece get_piece(int square) const;
+    void put_piece(Player player, Piece piece, int square);
+    void remove_piece(Player player, int square);
     uint64_t get_occupied_mask(Player player) const;
     uint64_t get_occupied_mask() const noexcept;
     uint64_t get_empty_mask() const noexcept;

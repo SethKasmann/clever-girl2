@@ -4,6 +4,7 @@
 
 #include "fen.h"
 #include "piece.h"
+#include "hash.h"
 
 namespace fen
 {
@@ -32,7 +33,8 @@ namespace fen
         {
             int file = 'h' - tolower(en_passant[0]);
             int rank = tolower(en_passant[1]) - '1';
-            board.en_passant |= 1ull << (rank * 8 + file);
+            board.en_passant = rank * 8 + file;
+            set_key(board.key, file);
         }
     }
 
@@ -58,12 +60,14 @@ namespace fen
                 board.castle_rights |= 1ull << 3;
             }
         }
+        set_key(board.key, board.castle_rights);
     }
 
     // Active color. "w" means White moves next, "b" means Black moves next.
     void set_side_to_move(Board& board, const std::string& side_to_move)
     {
         board.player = side_to_move[0] == 'w' ? Player::white : Player::black;
+        set_key(board.key, board.player);
     }
 
     // Piece placement (from White's perspective).
@@ -94,6 +98,7 @@ namespace fen
                 board.pieces[piece] |= square_mask;
                 board.occupancy[player] |= square_mask;
                 board.board[current_square] = piece;
+                set_key(board.key, player, piece, current_square);
                 current_square -= 1;
             }
         }

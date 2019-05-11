@@ -1,4 +1,5 @@
 #include "board.h"
+#include "hash.h"
 
 constexpr unsigned kingside_castle_white = 1;
 constexpr unsigned queenside_castle_white = 2;
@@ -10,15 +11,36 @@ void Board::init()
     player = Player::white;
     pieces.fill({});
     occupancy.fill({});
-    en_passant = 0ull;
+    board.fill({});
+    en_passant = 0;
     castle_rights = 0;
     halfmove_clock = 0;
     fullmove_number = 0;
+    key = 0ull;
 }
 
 Piece Board::get_piece(int square) const
 {
     return board[square];
+}
+
+void Board::put_piece(Player player, Piece piece, int square)
+{
+    uint64_t square_bit = bitboard::get_bitboard(square);
+    occupancy[player] |= square_bit;
+    pieces[piece] |= square_bit;
+    board[square] = piece;
+    set_key(key, player, piece, square);
+}
+
+void Board::remove_piece(Player player, int square)
+{
+    uint64_t square_bit = bitboard::get_bitboard(square);
+    Piece piece = board[square];
+    occupancy[player] ^= square_bit;
+    pieces[piece] ^= square_bit;
+    board[square] = Piece::none;
+    set_key(key, player, piece, square);
 }
 
 uint64_t Board::get_occupied_mask(Player player) const
@@ -119,79 +141,76 @@ void Board::make_move(Move move)
 {
     ASSERT(is_valid(), this, "Board did not pass validation.");
 
-    Piece moved_piece = get_piece(move.from);
-    Piece captured_piece = get_piece(move.to);
+    Piece moved = get_piece(move.from);
+    Piece captured = get_piece(move.to);
 
-    // Create unmake.
-    Unmake unmake{ captured_piece, false, 0ull, 0 };
+    unmake_stack.push({captured, en_passant, castle_rights, key});
 
-    uint64_t to_mask = bitboard::get_bitboard(move.to);
-    uint64_t from_mask = bitboard::get_bitboard(move.from);
-
-    uint64_t en_passant_mask_copy = en_passant;
-    // Unmake castle mask.
-    unmake.en_passant_mask = en_passant;
-    en_passant = 0ull;
-
-    if (move.castle)
+    if (captured != Piece::none)
     {
-        bool is_kingside_castle = move.from > move.to;
-
-        int rook_to_square = is_kingside_castle ? move.to + 1 : move.to - 1;
-        int rook_from_square = is_kingside_castle ? move.to - 1 : move.to + 2;
-
-        uint64_t rook_to_mask = bitboard::get_bitboard(rook_to_square);
-        uint64_t rook_from_mask = bitboard::get_bitboard(rook_from_square);
-
-        occupancy[player] ^= (rook_to_mask | rook_from_mask);
-        pieces[Piece::rook] ^= (rook_to_mask | rook_from_mask);
-        board[rook_from_square] = Piece::none;
-        board[rook_to_square] = Piece::rook;
-    }
-    else if (moved_piece == Piece::pawn && to_mask == en_passant_mask_copy)
-    {
-        int en_passant_captured_square = move.from < move.to ? move.to - 8 : move.to + 8;
-        uint64_t en_passant_captured_mask = bitboard::get_bitboard(en_passant_captured_square);
-        occupancy[!player] ^= en_passant_captured_mask;
-        pieces[Piece::pawn] ^= en_passant_captured_mask;
-        board[en_passant_captured_square] = Piece::none;
-        // Set unmake en passant move.
-        unmake.en_passant = true;
-    }
-    else if (moved_piece == Piece::pawn && abs(move.from - move.to) == 16)
-    {
-        int en_passant_square = move.from < move.to ? move.from + 8 : move.from - 8;
-        en_passant = bitboard::get_bitboard(en_passant_square);
+        remove_piece(!player, move.to);
     }
 
-    occupancy[player] ^= (to_mask | from_mask);
-    pieces[moved_piece] ^= from_mask;
-    pieces[moved_piece] |= to_mask;
-    board[move.from] = Piece::none;
-    board[move.to] = moved_piece;
+    remove_piece(player, move.from);
+    put_piece(player, moved, move.to);
 
-    if (captured_piece != Piece::none)
+    if (en_passant)
     {
-        occupancy[!player] ^= to_mask;
-        if (captured_piece != moved_piece)
+        // Check if the move captures a pawn en passant.
+        if (move.to == en_passant && moved == Piece::pawn)
         {
-            pieces[captured_piece] ^= to_mask;
+            int capture_square = en_passant + (move.from < move.to ? -8 : 8);
+            remove_piece(!player, capture_square);
+        }
+        // Clear en passant square.
+        set_key(key, en_passant);
+        en_passant = 0;
+    }
+
+    // Check for double push.
+    if (moved == Piece::pawn && abs(move.from - move.to) == 16)
+    {
+        // Set new en passant square.
+        en_passant = (move.from + move.to) / 2;
+        set_key(key, en_passant);
+    }
+
+    // Check for castling moves.
+    if (moved == Piece::king && abs(move.from - move.to) == 2)
+    {
+        if (move.from > move.to) // Kingside castle
+        {
+            remove_piece(player, move.to - 1);
+            put_piece(player, Piece::rook, move.to + 1);
+        }
+        else // Queenside castle
+        {
+            remove_piece(player, move.to + 2);
+            put_piece(player, Piece::rook, move.to - 1);
         }
     }
 
+    // Check for promotion.
     if (move.promotion != Piece::none)
     {
-        board[move.to] = move.promotion;
-        pieces[moved_piece] ^= to_mask;
-        pieces[move.promotion] ^= to_mask;
+        remove_piece(player, move.to);
+        put_piece(player, move.promotion, move.to);
+    }
+    
+    // Update castle rights.
+    if (castle_rights)
+    {
+        set_key(key, castle_rights);
+        castle_rights &= castle_rights_mask[move.to];
+        castle_rights &= castle_rights_mask[move.from];
+        set_key(key, castle_rights);
     }
 
-    // Set unmake castle rights.
-    unmake.castle_rights = castle_rights;
-    castle_rights &= castle_rights_mask[move.to];
-    castle_rights &= castle_rights_mask[move.from];
+    // Update the side to move.
+    set_key(key, player);
     player = !player;
-    unmake_stack.push(unmake);
+    set_key(key, player);
+
     ASSERT(is_valid(), *this, "Board did not pass validation.");
 }
 
@@ -199,58 +218,67 @@ void Board::unmake_move(Move move)
 {
     ASSERT(is_valid(), this, "Board did not pass validation.");
     Unmake unmake = unmake_stack.top();
-    Piece moved_piece = get_piece(move.to);
+    Piece moved = get_piece(move.to);
 
+    set_key(key, player);
     player = !player;
+    set_key(key, player);
 
-    // Unmake castle moves.
-    if (move.castle)
+    if (en_passant)
     {
-        bool is_kingside_castle = move.from > move.to;
-
-        int rook_from_square = is_kingside_castle ? move.to + 1 : move.to - 1;
-        int rook_to_square = is_kingside_castle ? move.to - 1 : move.to + 2;
-
-        uint64_t rook_to_mask = bitboard::get_bitboard(rook_to_square);
-        uint64_t rook_from_mask = bitboard::get_bitboard(rook_from_square);
-
-        occupancy[player] ^= (rook_to_mask | rook_from_mask);
-        pieces[Piece::rook] ^= (rook_to_mask | rook_from_mask);
-        board[rook_from_square] = Piece::none;
-        board[rook_to_square] = Piece::rook;
-    }
-    else if (unmake.en_passant)
-    {
-        int en_passant_captured_square = move.from < move.to ? move.to - 8 : move.to + 8;
-        uint64_t en_passant_captured_mask = bitboard::get_bitboard(en_passant_captured_square);
-        occupancy[!player] ^= en_passant_captured_mask;
-        pieces[Piece::pawn] ^= en_passant_captured_mask;
-        board[en_passant_captured_square] = Piece::pawn;
+        set_key(key, en_passant);
     }
 
-    uint64_t to_mask = bitboard::get_bitboard(move.to);
-    uint64_t from_mask = bitboard::get_bitboard(move.from);
+    // Check for castling moves.
+    if (moved == Piece::king && abs(move.from - move.to) == 2)
+    {
+        if (move.from > move.to) // Kingside castle
+        {
+            remove_piece(player, move.to + 1);
+            put_piece(player, Piece::rook, move.to - 1);
+        }
+        else // Queenside castle
+        {
+            remove_piece(player, move.to - 1);
+            put_piece(player, Piece::rook, move.to + 2);
+        }
+    }
+    else if (unmake.en_passant && move.to == unmake.en_passant && moved == Piece::pawn)
+    {
+        int captured_square = unmake.en_passant + (move.from < move.to ? -8 : 8);
+        put_piece(!player, Piece::pawn, captured_square);
+    }
 
-    occupancy[player] ^= to_mask | from_mask;
-    pieces[moved_piece] ^= to_mask | from_mask;
-    board[move.to] = unmake.captured;
-    board[move.from] = moved_piece;
+    remove_piece(player, move.to);
+    put_piece(player, moved, move.from);
 
     if (unmake.captured != Piece::none)
     {
-        occupancy[!player] |= to_mask;
-        pieces[unmake.captured] |= to_mask;
+        put_piece(!player, unmake.captured, move.to);
     }
 
     if (move.promotion != Piece::none)
     {
-        pieces[Piece::pawn] ^= from_mask;
-        pieces[move.promotion] ^= from_mask;
-        board[move.from] = Piece::pawn;
+        remove_piece(player, move.from);
+        put_piece(player, Piece::pawn, move.from);
     }
-
-    en_passant = unmake.en_passant_mask;
+    if (unmake.en_passant)
+    {
+        set_key(key, unmake.en_passant);
+    }
+    en_passant = unmake.en_passant;
+    if (castle_rights)
+    {
+        set_key(key, castle_rights);
+    }
     castle_rights = unmake.castle_rights;
+    if (castle_rights)
+    {
+        set_key(key, castle_rights);
+    }
+    // TODO: Get this assert to work!
+    //assert(key == unmake.key);
+    key = unmake.key;
 
     unmake_stack.pop();
     ASSERT(is_valid(), this, "Board did not pass validation.");
@@ -303,11 +331,6 @@ bool Board::is_valid() const
     {
         std::cout << ++issues << ". The number of kings is not valid at " << number_of_kings << ".\n";
     }
-    int number_of_en_passant = bitboard::pop_count(en_passant);
-    if (number_of_en_passant > 1)
-    {
-        std::cout << ++issues << ". There are " << number_of_en_passant << " pawns.\n";
-    }
 
     if (get_piece_mask<Piece::king>(Player::white))
     {
@@ -340,7 +363,7 @@ std::ostream& operator<<(std::ostream& o, Board board)
         {
             o << std::to_string(bitboard::get_rank(square_bit) + 1);
         }
-        o << '|' << (square_bit & board.en_passant ? '*' : ' ');
+        o << '|' << (square == board.en_passant ? '*' : ' ');
         if (square_bit & board.get_empty_mask())
         {
             o << "  ";
@@ -399,10 +422,8 @@ std::ostream& operator<<(std::ostream& o, Board board)
         o << "q";
     }
 
-    int en_passant_square = board.en_passant == 0ull ? 0 : bitboard::get_lsb(board.en_passant);
-
     o << '\n'
-        << std::setw(20) << "en_passant: " << board.en_passant << ", as square: " << en_passant_square << '\n'
+        << std::setw(20) << "en_passant: " << board.en_passant << '\n'
         << std::setw(20) << "halfmove_clock: " << board.halfmove_clock << '\n'
         << std::setw(20) << "fullmove_number: " << board.fullmove_number << '>';
         //<< std::setw(20) << "last move: " << board.unmake_stack.top().move << '>';

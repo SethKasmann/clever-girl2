@@ -134,13 +134,13 @@ public:
                     // Bishop/Queen attacks opponents diagonal slider.
                     if (bitboard::get_bitboard(attacker_square) & _valid_attack_mask)
                     {
-                        _move_list[_size++] = { pin_square, attacker_square, Piece::none, false };
+                        _move_list[_size++] = { pin_square, attacker_square, Piece::none };
                     }
                     // Bishop/Queen quiet moves on the pin ray.
                     for (uint64_t valid_quiet_mask = pin_ray & _valid_quiet_mask; valid_quiet_mask; bitboard::pop_lsb(valid_quiet_mask))
                     {
                         int to_square = bitboard::get_lsb(valid_quiet_mask);
-                        _move_list[_size++] = { pin_square, to_square, Piece::none, false };
+                        _move_list[_size++] = { pin_square, to_square, Piece::none };
                     }
                 }
             }
@@ -166,13 +166,13 @@ public:
                     // Rook/Queen attacks opponents diagonal slider.
                     if (bitboard::get_bitboard(attacker_square) & _valid_attack_mask)
                     {
-                        _move_list[_size++] = { pin_square, attacker_square, Piece::none, false };
+                        _move_list[_size++] = { pin_square, attacker_square, Piece::none };
                     }
                     // Rook/Queen quiet moves on the pin ray.
                     for (uint64_t valid_quiet_mask = pin_ray & _valid_quiet_mask; valid_quiet_mask; bitboard::pop_lsb(valid_quiet_mask))
                     {
                         int to_square = bitboard::get_lsb(valid_quiet_mask);
-                        _move_list[_size++] = { pin_square, to_square, Piece::none, false };
+                        _move_list[_size++] = { pin_square, to_square, Piece::none };
                     }
                 }
             }
@@ -188,10 +188,10 @@ public:
             int to_square = bitboard::get_lsb(move_mask);
             int from_square = to_square - delta;
 
-            _move_list[_size++] = { from_square, to_square, Piece::queen, false };
-            _move_list[_size++] = { from_square, to_square, Piece::bishop, false };
-            _move_list[_size++] = { from_square, to_square, Piece::rook, false };
-            _move_list[_size++] = { from_square, to_square, Piece::knight, false };
+            _move_list[_size++] = { from_square, to_square, Piece::queen };
+            _move_list[_size++] = { from_square, to_square, Piece::bishop };
+            _move_list[_size++] = { from_square, to_square, Piece::rook };
+            _move_list[_size++] = { from_square, to_square, Piece::knight };
         }
 
         // Add non promotions to the move list.
@@ -199,7 +199,7 @@ public:
         for (; move_mask; bitboard::pop_lsb(move_mask))
         {
             int square = bitboard::get_lsb(move_mask);
-            _move_list[_size++] = { square - delta, square, Piece::none, false };
+            _move_list[_size++] = { square - delta, square, Piece::none };
         }
     }
 
@@ -236,18 +236,17 @@ public:
 
         // Confirm en passant moves don't leave the king in check.
         if (board.en_passant &&
-            Pmagic(bitboard::get_lsb(board.en_passant), board.get_piece_mask<Piece::pawn>(board.player), !board.player))
+            Pmagic(board.en_passant, board.get_piece_mask<Piece::pawn>(board.player), !board.player))
         {
-            int en_passant_square = bitboard::get_lsb(board.en_passant);
             int king_square = bitboard::get_lsb(board.get_piece_mask<Piece::king>(board.player));
             int delta = _forward_delta;
             for (int i = 0; i < _size; ++i)
             {
-                if (_move_list[i].to == en_passant_square && board.get_piece(_move_list[i].from) == Piece::pawn)
+                if (_move_list[i].to == board.en_passant && board.get_piece(_move_list[i].from) == Piece::pawn)
                 {
                     // Adjust the occupany as if the en passant move is made.
                     uint64_t adjusted_occupancy =
-                        board.get_occupied_mask() ^ (bitboard::get_bitboard(_move_list[i].from) | bitboard::get_bitboard(_move_list[i].to - delta) | board.en_passant);
+                        board.get_occupied_mask() ^ (bitboard::get_bitboard(_move_list[i].from) | bitboard::get_bitboard(_move_list[i].to - delta) | bitboard::get_bitboard(board.en_passant));
                     if (board.is_attacked(king_square, board.player, adjusted_occupancy))
                     {
                         _move_list[i] = _move_list[--_size];
@@ -266,12 +265,17 @@ public:
         uint64_t pawn_push = 0ull;
         uint64_t pawn_dbl_push = 0ull;
         uint64_t pawns = board.get_piece_mask<Piece::pawn>(board.player) & ~_pin_mask;
+        uint64_t valid_attack_mask = _valid_attack_mask | bitboard::get_bitboard(board.en_passant);
+        if (board.en_passant)
+        {
+            valid_attack_mask |= bitboard::get_bitboard(board.en_passant);
+        }
 
         if (board.player == Player::white)
         {
-            pawn_attacks_left = (pawns & ~bitboard::h_file) << 7 & (_valid_attack_mask | board.en_passant);
+            pawn_attacks_left = (pawns & ~bitboard::h_file) << 7 & valid_attack_mask;
             push_pawn_moves(pawn_attacks_left, 7);
-            pawn_attacks_right = (pawns & ~bitboard::a_file) << 9 & (_valid_attack_mask | board.en_passant);
+            pawn_attacks_right = (pawns & ~bitboard::a_file) << 9 & valid_attack_mask;
             push_pawn_moves(pawn_attacks_right, 9);
             pawn_push = pawns << 8 & _valid_quiet_mask;
             push_pawn_moves(pawn_push, 8);
@@ -280,9 +284,9 @@ public:
         }
         else
         {
-            pawn_attacks_left |= (pawns & ~bitboard::h_file) >> 9 & (_valid_attack_mask | board.en_passant);
+            pawn_attacks_left |= (pawns & ~bitboard::h_file) >> 9 & valid_attack_mask;
             push_pawn_moves(pawn_attacks_left, -9);
-            pawn_attacks_right |= (pawns & ~bitboard::a_file) >> 7 & (_valid_attack_mask | board.en_passant);
+            pawn_attacks_right |= (pawns & ~bitboard::a_file) >> 7 & valid_attack_mask;
             push_pawn_moves(pawn_attacks_right, -7);
             pawn_push = pawns >> 8 & _valid_quiet_mask;
             push_pawn_moves(pawn_push, -8);
@@ -292,18 +296,17 @@ public:
 
         // Confirm en passant moves don't leave the king in check.
         if (board.en_passant &&
-            Pmagic(bitboard::get_lsb(board.en_passant), board.get_piece_mask<Piece::pawn>(board.player), !board.player))
+            Pmagic(board.en_passant, board.get_piece_mask<Piece::pawn>(board.player), !board.player))
         {
-            int en_passant_square = bitboard::get_lsb(board.en_passant);
             int king_square = bitboard::get_lsb(board.get_piece_mask<Piece::king>(board.player));
             int delta = _forward_delta;
             for (int i = 0; i < _size; ++i)
             {
-                if (_move_list[i].to == en_passant_square && board.get_piece(_move_list[i].from) == Piece::pawn)
+                if (_move_list[i].to == board.en_passant && board.get_piece(_move_list[i].from) == Piece::pawn)
                 {
                     // Adjust the occupany as if the en passant move is made.
                     uint64_t adjusted_occupancy =
-                        board.get_occupied_mask() ^ (bitboard::get_bitboard(_move_list[i].from) | bitboard::get_bitboard(_move_list[i].to - delta) | board.en_passant);
+                        board.get_occupied_mask() ^ (bitboard::get_bitboard(_move_list[i].from) | bitboard::get_bitboard(_move_list[i].to - delta) | bitboard::get_bitboard(board.en_passant));
                     if (board.is_attacked(king_square, board.player, adjusted_occupancy))
                     {
                         _move_list[i] = _move_list[--_size];
@@ -325,7 +328,7 @@ public:
             for (; move_mask; bitboard::pop_lsb(move_mask))
             {
                 int to_square = bitboard::get_lsb(move_mask);
-                _move_list[_size++] = { from_square, to_square, Piece::none, false };
+                _move_list[_size++] = { from_square, to_square, Piece::none };
             }
         }
     }
@@ -338,11 +341,11 @@ public:
 
         if (board.can_castle_kingside())
         {
-            _move_list[_size++] = { from_square, from_square - 2, Piece::none, true };
+            _move_list[_size++] = { from_square, from_square - 2, Piece::none };
         }
         if (board.can_castle_queenside())
         {
-            _move_list[_size++] = { from_square, from_square + 2, Piece::none, true };
+            _move_list[_size++] = { from_square, from_square + 2, Piece::none };
         }
     }
 

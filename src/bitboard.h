@@ -33,7 +33,7 @@ namespace bitboard
     {
         ASSERT(bitboard, bitboard, "Attempting to get_lsb of 0.");
         unsigned long index;
-        if (_BitScanForward(&index, bitboard))
+        if (_BitScanForward(&index, static_cast<unsigned long>(bitboard)))
         {
             return static_cast<int>(index);
         }
