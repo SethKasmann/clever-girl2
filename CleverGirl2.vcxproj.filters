@@ -68,9 +68,6 @@
     <ClInclude Include="src\perft.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\piece_list.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\hash.h">
       <Filter>Header Files</Filter>
     </ClInclude>

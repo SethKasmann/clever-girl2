@@ -5,6 +5,7 @@ namespace bitboard
     uint64_t rook_attacks[64];
     uint64_t bishop_attacks[64];
     uint64_t between_mask[64][64];
+    //uint64_t pseudo_attacks_mask[7][64];
 
     uint64_t between_horizonal(int square0, int square1)
     {
@@ -20,6 +21,15 @@ namespace bitboard
     {
         return between_mask[square0][square1];
     }
+
+    //uint64_t pseudo_attacks(Player player, Piece piece, int square)
+    //{
+    //    if (piece == Piece::pawn)
+    //    {
+    //        return pseudo_attacks_mask[piece][square]; //& in_front_of[player][square];
+    //    }
+    //    return pseudo_attacks_mask[piece][square];
+    //}
 
     void init()
     {

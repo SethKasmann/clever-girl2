@@ -8,6 +8,8 @@
 
 #include "assert.h"
 #include "magic_moves.h"
+#include "piece.h"
+#include "player.h"
 
 namespace bitboard
 {

@@ -15,9 +15,6 @@
 #include "piece.h"
 #include "player.h"
 #include "move.h"
-#include "piece_list.h"
-
-
 
 static const std::array<unsigned, 64> castle_rights_mask =
 {
@@ -46,7 +43,6 @@ struct Board
     std::array<uint64_t, Piece::count> pieces;
     std::array<Piece, 64> board;
     std::array<uint64_t, 2> occupancy;
-    //PieceList piece_list;
     int en_passant;
     unsigned castle_rights;
     int halfmove_clock;
@@ -66,12 +62,6 @@ struct Board
     {
         return occupancy[player] & get_piece_mask<P...>();
     }
-
-    /*template<Piece P>
-    const PieceList& get_piece_list(Player player) const
-    {
-        return piece_list_manager.get_list<P>(player);
-    }*/
 
     Piece get_piece(int square) const;
     void put_piece(Player player, Piece piece, int square);

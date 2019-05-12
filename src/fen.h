@@ -4,7 +4,6 @@
 #include <string>
 
 #include "board.h"
-#include "piece_list.h"
 
 namespace fen
 {

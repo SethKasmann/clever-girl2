@@ -94,11 +94,7 @@ namespace fen
             {
                 Player player = isupper(c) > 0 ? Player::white : Player::black;
                 Piece piece = char_to_piece.at(tolower(c));
-                uint64_t square_mask = bitboard::get_bitboard(current_square);
-                board.pieces[piece] |= square_mask;
-                board.occupancy[player] |= square_mask;
-                board.board[current_square] = piece;
-                set_key(board.key, player, piece, current_square);
+                board.put_piece(player, piece, current_square);
                 current_square -= 1;
             }
         }
