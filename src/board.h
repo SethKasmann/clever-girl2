@@ -15,6 +15,7 @@
 #include "piece.h"
 #include "player.h"
 #include "move.h"
+#include "magic_moves.h"
 
 static const std::array<unsigned, 64> castle_rights_mask =
 {
@@ -63,6 +64,11 @@ struct Board
         return occupancy[player] & get_piece_mask<P...>();
     }
 
+    int get_king_square(Player player) const
+    {
+        return bitboard::get_lsb(get_piece_mask<Piece::king>(player));
+    }
+
     Piece get_piece(int square) const;
     void put_piece(Player player, Piece piece, int square);
     void remove_piece(Player player, int square);
@@ -72,8 +78,8 @@ struct Board
     uint64_t get_attack_mask(Player player, uint64_t occupancy) const;
     bool is_attacked(int square, Player player) const;
     bool is_attacked(int square, Player player, uint64_t occupancy) const;
-    bool can_castle_kingside() const;
-    bool can_castle_queenside() const;
+    bool can_castle_kingside(uint64_t attack_mask) const;
+    bool can_castle_queenside(uint64_t attack_mask) const;
     bool is_valid() const;
     void make_move(Move move);
     void unmake_move(Move move);

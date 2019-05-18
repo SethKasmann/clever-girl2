@@ -2,6 +2,7 @@
 #define PIECE_H
 
 #include <array>
+#include <iostream>
 
 enum Piece
 {

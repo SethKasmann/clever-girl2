@@ -30,6 +30,9 @@ namespace bitboard
     uint64_t between_horizonal(int square0, int square1);
     uint64_t between_diagonal(int square0, int square1);
     uint64_t between(int square0, int square1);
+    uint64_t pawn_attacks(Player player, uint64_t mask);
+    uint64_t bishop_moves(int square);
+    uint64_t rook_moves(int square);
 
     inline int get_lsb(uint64_t bitboard)
     {
@@ -43,10 +46,12 @@ namespace bitboard
         return static_cast<int>(index) + 32;
     }
 
-    inline void pop_lsb(uint64_t& bitboard)
+    inline int pop_lsb(uint64_t& bitboard)
     {
         ASSERT(bitboard, bitboard, "Attempting to pop_lsb of 0.");
+        int lsb = get_lsb(bitboard);
         bitboard &= bitboard - 1;
+        return lsb;
     }
 
     inline int pop_count(uint64_t bitboard)

@@ -5,7 +5,6 @@ namespace bitboard
     uint64_t rook_attacks[64];
     uint64_t bishop_attacks[64];
     uint64_t between_mask[64][64];
-    //uint64_t pseudo_attacks_mask[7][64];
 
     uint64_t between_horizonal(int square0, int square1)
     {
@@ -22,6 +21,27 @@ namespace bitboard
         return between_mask[square0][square1];
     }
 
+    uint64_t pawn_attacks(Player player, uint64_t mask)
+    {
+        if (player == Player::white)
+        {
+            return (mask & ~h_file) << 7 | (mask & ~bitboard::a_file) << 9;
+        }
+        else
+        {
+            return (mask & ~h_file) >> 9 | (mask & ~a_file) >> 7;
+        }
+    }
+
+    uint64_t bishop_moves(int square)
+    {
+        return bishop_attacks[square];
+    }
+
+    uint64_t rook_moves(int square)
+    {
+        return rook_attacks[square];
+    }
     //uint64_t pseudo_attacks(Player player, Piece piece, int square)
     //{
     //    if (piece == Piece::pawn)

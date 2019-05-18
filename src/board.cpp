@@ -1,5 +1,6 @@
 #include "board.h"
 #include "hash.h"
+#include "magic_moves.h"
 
 constexpr unsigned kingside_castle_white = 1;
 constexpr unsigned queenside_castle_white = 2;
@@ -62,33 +63,27 @@ uint64_t Board::get_attack_mask(Player player, uint64_t occupancy) const
 {
     uint64_t attacks = 0ull;
 
-    if (player == Player::white)
+    attacks |= pawn_attacks(player, get_piece_mask<Piece::pawn>(player));
+
+    uint64_t knights = get_piece_mask<Piece::knight>(player);
+    while (knights)
     {
-        attacks |= (get_piece_mask<Piece::pawn>(player) & ~bitboard::h_file) << 7;
-        attacks |= (get_piece_mask<Piece::pawn>(player) & ~bitboard::a_file) << 9;
-    }
-    else
-    {
-        attacks |= (get_piece_mask<Piece::pawn>(player) & ~bitboard::h_file) >> 9;
-        attacks |= (get_piece_mask<Piece::pawn>(player) & ~bitboard::a_file) >> 7;
+        attacks |= attacks_from<Piece::knight>(bitboard::pop_lsb(knights), occupancy);
     }
 
-    for (uint64_t knights = get_piece_mask<Piece::knight>(player); knights; bitboard::pop_lsb(knights))
+    uint64_t d_sliders = get_piece_mask<Piece::bishop, Piece::queen>(player);
+    while (d_sliders)
     {
-        attacks |= MoveGenerator::generate_moves<Piece::knight>(occupancy, bitboard::get_lsb(knights), player);
+        attacks |= attacks_from<Piece::bishop>(bitboard::pop_lsb(d_sliders), occupancy);
     }
 
-    for (uint64_t d_sliders = get_piece_mask<Piece::bishop, Piece::queen>(player); d_sliders; bitboard::pop_lsb(d_sliders))
+    uint64_t h_sliders = get_piece_mask<Piece::rook, Piece::queen>(player);
+    while (h_sliders)
     {
-        attacks |= MoveGenerator::generate_moves<Piece::bishop>(occupancy, bitboard::get_lsb(d_sliders), player);
+        attacks |= attacks_from<Piece::rook>(bitboard::pop_lsb(h_sliders), occupancy);
     }
 
-    for (uint64_t h_sliders = get_piece_mask<Piece::rook, Piece::queen>(player); h_sliders; bitboard::pop_lsb(h_sliders))
-    {
-        attacks |= MoveGenerator::generate_moves<Piece::rook>(occupancy, bitboard::get_lsb(h_sliders), player);
-    }
-
-    attacks |= MoveGenerator::generate_moves<Piece::king>(occupancy, bitboard::get_lsb(get_piece_mask<Piece::king>(player)), player);
+    attacks |= Kmagic(get_king_square(player), occupancy);
 
     return attacks;
 }
@@ -100,39 +95,39 @@ bool Board::is_attacked(int square, Player player) const
 
 bool Board::is_attacked(int square, Player player, uint64_t occupancy) const
 {
-    return (MoveGenerator::generate_moves<Piece::pawn>(occupancy, square, player) & get_piece_mask<Piece::pawn>(!player))
-        | (MoveGenerator::generate_moves<Piece::knight>(occupancy, square, player) & get_piece_mask<Piece::knight>(!player))
-        | (MoveGenerator::generate_moves<Piece::bishop>(occupancy, square, player) & get_piece_mask<Piece::bishop, Piece::queen>(!player))
-        | (MoveGenerator::generate_moves<Piece::rook>(occupancy, square, player) & get_piece_mask<Piece::rook, Piece::queen>(!player))
-        | (MoveGenerator::generate_moves<Piece::king>(occupancy, square, player) & get_piece_mask<Piece::king>(!player));
+    return (pawn_attacks(player, square) & occupancy & get_piece_mask<Piece::pawn>(!player))
+        | (attacks_from<Piece::knight>(square, occupancy) & get_piece_mask<Piece::knight>(!player))
+        | (attacks_from<Piece::bishop>(square, occupancy) & get_piece_mask<Piece::bishop, Piece::queen>(!player))
+        | (attacks_from<Piece::rook>(square, occupancy) & get_piece_mask<Piece::rook, Piece::queen>(!player))
+        | (attacks_from<Piece::king>(square, occupancy) & get_piece_mask<Piece::king>(!player));
 }
 
-bool Board::can_castle_kingside() const
+bool Board::can_castle_kingside(uint64_t attack_mask) const
 {
     bool can_castle = false;
-    if (castle_rights & (player == Player::white ? 1 : 4))
+    if (castle_rights & (player == Player::white ? kingside_castle_white : kingside_castle_black))
     {
-        int king_square = bitboard::get_lsb(get_piece_mask<Piece::king>(player));
-        uint64_t occupancy_mask_without_king = get_occupied_mask() ^ get_piece_mask<Piece::king>(player);
+        int king_square = get_king_square(player);
 
+        // Confirm there are no pieces blocking the king from castling and the king does not pass
+        // through an attacked square.
         can_castle = (!(bitboard::between_horizonal(king_square, king_square - 3) & get_occupied_mask())
-            && !is_attacked(king_square - 1, player, occupancy_mask_without_king)
-            && !is_attacked(king_square - 2, player, occupancy_mask_without_king));
+            && !(bitboard::between_horizonal(king_square, king_square - 3) & attack_mask));
     }
     return can_castle;
 }
 
-bool Board::can_castle_queenside() const
+bool Board::can_castle_queenside(uint64_t attack_mask) const
 {
     bool can_castle = false;
-    if (castle_rights & (player == Player::white ? 2 : 8))
+    if (castle_rights & (player == Player::white ? queenside_castle_white : queenside_castle_black))
     {
-        int king_square = bitboard::get_lsb(get_piece_mask<Piece::king>(player));
-        uint64_t occupancy_mask_without_king = get_occupied_mask() ^ get_piece_mask<Piece::king>(player);
+        int king_square = get_king_square(player);
 
+        // Confirm there are no pieces blocking the king from castling and the king does not pass
+        // through an attacked square.
         can_castle = (!(bitboard::between_horizonal(king_square, king_square + 4) & get_occupied_mask())
-            && !is_attacked(king_square + 1, player, occupancy_mask_without_king)
-            && !is_attacked(king_square + 2, player, occupancy_mask_without_king));
+            && !(bitboard::between_horizonal(king_square, king_square + 3) & attack_mask));
     }
     return can_castle;
 }
@@ -342,8 +337,8 @@ bool Board::is_valid() const
 
     if (get_piece_mask<Piece::king>(Player::white))
     {
-        int king_square = bitboard::get_lsb(get_piece_mask<Piece::king>(Player::white));
-        uint64_t king_moves = MoveGenerator::generate_moves<king>(get_occupied_mask(), king_square, Player::white);
+        int king_square = get_king_square(player);
+        uint64_t king_moves = attacks_from<Piece::king>(king_square, get_occupied_mask());
         if (king_moves & get_piece_mask<Piece::king>(Player::black))
         {
             std::cout << ++issues << ". White and black kings are too close.\n";

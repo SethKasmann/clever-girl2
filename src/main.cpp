@@ -10,7 +10,7 @@
 int main(int argc, char* argv[])
 {
     std::cout << std::is_pod<Board>::value << '\n';
-    MoveGenerator::init();
+    move_generator_init();
     bitboard::init();
     hash_init();
     perft_fast();
