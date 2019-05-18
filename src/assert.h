@@ -1,9 +1,9 @@
 #ifndef ASSERT_H
 #define ASSERT_H
 
-#include <assert.h>
-
 #define NDEBUG
+
+#include <assert.h>
 
 #ifndef NDEBUG
 #define ASSERT(condition, object, message) \

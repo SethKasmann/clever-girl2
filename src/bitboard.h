@@ -2,7 +2,6 @@
 #define BITBOARD_H
 
 #include <iostream>
-#include <assert.h>
 #include <nmmintrin.h>
 #include <string>
 

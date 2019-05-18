@@ -9,6 +9,7 @@
 #include <functional>
 #include <numeric>
 #include <stack>
+#include <vector>
 
 #include "bitboard.h"
 #include "move_generator.h"
@@ -48,7 +49,7 @@ struct Board
     unsigned castle_rights;
     int halfmove_clock;
     int fullmove_number;
-    std::stack<Unmake> unmake_stack;
+    std::vector<Unmake> unmake_stack;
     uint64_t key;
 
     template<Piece... P>

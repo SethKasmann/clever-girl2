@@ -18,6 +18,7 @@ void Board::init()
     halfmove_clock = 0;
     fullmove_number = 0;
     key = 0ull;
+    unmake_stack.reserve(255);
 }
 
 Piece Board::get_piece(int square) const
@@ -139,7 +140,7 @@ void Board::make_move(Move move)
     const Piece moved = get_piece(move.from);
     const Piece captured = get_piece(move.to);
 
-    unmake_stack.push({captured, en_passant, castle_rights, key});
+    unmake_stack.emplace_back(Unmake{captured, en_passant, castle_rights, key});
 
     // Update piece location.
     if (captured != Piece::none)
@@ -213,7 +214,7 @@ void Board::unmake_move(Move move)
 {
     ASSERT(is_valid(), this, "Board did not pass validation.");
 
-    Unmake unmake = unmake_stack.top();
+    Unmake unmake = unmake_stack.back();
 
     const Piece moved = get_piece(move.to);
     const Piece captured = unmake.captured;
@@ -279,10 +280,9 @@ void Board::unmake_move(Move move)
         set_key(key, castle_rights);
     }
 
-    assert(key == unmake.key);
-    key = unmake.key;
+    ASSERT((key == unmake.key), key, "Key did not equal unmake.key");
 
-    unmake_stack.pop();
+    unmake_stack.pop_back();
     ASSERT(is_valid(), this, "Board did not pass validation.");
 }
 

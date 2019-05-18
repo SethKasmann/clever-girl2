@@ -140,7 +140,6 @@ inline uint64_t perft(Board& board, int depth)
     Move move = move_list.get_move();
     for (; move != null_move; move = move_list.get_move())
     {
-        //Board copy = board;
         board.make_move(move);
         nodes += perft(board, depth - 1);
         board.unmake_move(move);
