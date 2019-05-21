@@ -113,7 +113,6 @@ namespace fen
     Board create_board(const std::string& fen_string)
     {
         Board board;
-        board.init();
         auto fen_vec = fen_str_to_vec(fen_string);
         set_board_pieces(board, fen_vec[0]);
         set_side_to_move(board, fen_vec[1]);
@@ -121,6 +120,7 @@ namespace fen
         set_en_passant(board, fen_vec[3]);
         set_halfmove_clock(board, fen_vec[4]);
         set_fullmove_number(board, fen_vec[5]);
+        board.init();
         return board;
     }
 }

@@ -7,7 +7,7 @@ constexpr unsigned queenside_castle_white = 2;
 constexpr unsigned kingside_castle_black = 4;
 constexpr unsigned queenside_castle_black = 8;
 
-void Board::init()
+Board::Board()
 {
     player = Player::white;
     pieces.fill({});
@@ -19,6 +19,14 @@ void Board::init()
     fullmove_number = 0;
     key = 0ull;
     unmake_stack.reserve(255);
+    pinned = 0ull;
+    pinners = 0ull;
+}
+
+void Board::init()
+{
+    set_pins(Player::white);
+    set_pins(Player::black);
 }
 
 Piece Board::get_piece(int square) const
@@ -140,7 +148,7 @@ void Board::make_move(Move move)
     const Piece moved = get_piece(move.from);
     const Piece captured = get_piece(move.to);
 
-    unmake_stack.emplace_back(Unmake{captured, en_passant, castle_rights, key});
+    unmake_stack.emplace_back(Unmake{captured, en_passant, castle_rights, key, pinned, pinners});
 
     // Update piece location.
     if (captured != Piece::none)
@@ -206,6 +214,10 @@ void Board::make_move(Move move)
     set_key(key, player);
     player = !player;
     set_key(key, player);
+
+    pinners = 0ull;
+    pinned = 0ull;
+    set_pins(player);
 
     ASSERT(is_valid(), *this, "Board did not pass validation.");
 }
@@ -280,10 +292,30 @@ void Board::unmake_move(Move move)
         set_key(key, castle_rights);
     }
 
+    pinners = unmake.pinners;
+    pinned = unmake.pinned;
+
     ASSERT((key == unmake.key), key, "Key did not equal unmake.key");
 
     unmake_stack.pop_back();
     ASSERT(is_valid(), this, "Board did not pass validation.");
+}
+
+void Board::set_pins(Player player)
+{
+    int king_square = get_king_square(player);
+    uint64_t pseudo_attacks = (bitboard::rook_moves(king_square) & get_piece_mask<Piece::rook, Piece::queen>(!player))
+        | (bitboard::bishop_moves(king_square) & get_piece_mask<Piece::bishop, Piece::queen>(!player));
+    while (pseudo_attacks)
+    {
+        int slider = bitboard::pop_lsb(pseudo_attacks);
+        uint64_t between = bitboard::between(slider, king_square) & get_occupied_mask();
+        if (between & get_occupied_mask(player) && bitboard::pop_count(between) == 1)
+        {
+            pinners |= bitboard::get_bitboard(slider);
+            pinned |= between;
+        }
+    }
 }
 
 bool Board::is_valid() const

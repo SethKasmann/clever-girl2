@@ -57,25 +57,21 @@ void hash_init()
     int copy_idx = 0;
     for (uint64_t& key : zobrist_keys.player_keys)
     {
-        key = distinct_keys[copy_idx];
-        copy_idx++;
+        key = distinct_keys[copy_idx++];
     }
 
     for (uint64_t& key : zobrist_keys.castle_keys)
     {
-        key = distinct_keys[copy_idx];
-        copy_idx++;
+        key = distinct_keys[copy_idx++];
     }
 
     for (uint64_t& key : zobrist_keys.en_passant_keys)
     {
-        key = distinct_keys[copy_idx];
-        copy_idx++;
+        key = distinct_keys[copy_idx++];
     }
 
     for (uint64_t& key : zobrist_keys.piece_keys)
     {
-        key = distinct_keys[copy_idx];
-        copy_idx++;
+        key = distinct_keys[copy_idx++];
     }
 }

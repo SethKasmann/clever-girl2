@@ -36,10 +36,13 @@ struct Unmake
     int en_passant;
     unsigned castle_rights;
     uint64_t key;
+    uint64_t pinned;
+    uint64_t pinners;
 };
 
 struct Board
 {
+    Board();
     void init();
     Player player;
     std::array<uint64_t, Piece::count> pieces;
@@ -51,6 +54,8 @@ struct Board
     int fullmove_number;
     std::vector<Unmake> unmake_stack;
     uint64_t key;
+    uint64_t pinners;
+    uint64_t pinned;
 
     template<Piece... P>
     uint64_t get_piece_mask() const noexcept
@@ -84,6 +89,7 @@ struct Board
     bool is_valid() const;
     void make_move(Move move);
     void unmake_move(Move move);
+    void set_pins(Player player);
     friend std::ostream& operator<<(std::ostream& o, Board board);
 };
 
