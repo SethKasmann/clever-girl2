@@ -40,6 +40,9 @@
     <ClInclude Include="src\piece.h" />
     <ClInclude Include="src\player.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include=".clang-tidy" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{37E618EC-361A-45E3-ACE8-838EF14F060C}</ProjectGuid>
@@ -103,7 +106,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
