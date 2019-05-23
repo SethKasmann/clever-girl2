@@ -70,7 +70,8 @@ public:
         }
 
         // Normal Moves.
-        all_pawn_moves(board);
+        all_pawn_moves(board, board.get_piece_mask<Piece::pawn>(board.player) & ~_pin_mask, _valid_quiet_mask | _valid_attack_mask);
+
         push_moves<Piece::knight>(board);
         push_moves<Piece::bishop>(board);
         push_moves<Piece::rook>(board);
@@ -212,14 +213,13 @@ public:
         }
     }
 
-    bool ep_pawn_can_be_captured(const Board& board)
+    bool en_passant_causes_check(const Board& board)
     {
         int ep_cap_square = board.en_passant - _forward_delta;
-        return !(bitboard::bishop_moves(ep_cap_square) & board.get_piece_mask<Piece::king>(board.player)
-            && !(bitboard::between(_king_square, ep_cap_square) & board.get_occupied_mask())
+        return bitboard::bishop_moves(ep_cap_square) & board.get_piece_mask<Piece::king>(board.player) != 0u
             && attacks_from<Piece::bishop>(ep_cap_square, board.get_occupied_mask()) 
                 & bitboard::bishop_moves(_king_square) 
-                & board.get_piece_mask<Piece::bishop, Piece::queen>(!board.player));
+                & board.get_piece_mask<Piece::bishop, Piece::queen>(!board.player);
     }
 
     bool should_check_ep(const Board&board)
@@ -239,12 +239,34 @@ public:
         return false;
     }
 
-    void all_pawn_moves(const Board& board)
+    void all_pawn_moves(const Board& board, uint64_t pawns, uint64_t valid)
     {
-        uint64_t pawns = board.get_piece_mask<Piece::pawn>(board.player) & ~_pin_mask;
+        uint64_t moves = 0ull;
+        uint64_t valid_attacks = valid & board.get_occupied_mask(!board.player);
+        uint64_t valid_quiets = valid & board.get_empty_mask();
 
-        push_all_pawn_attacks(board, pawns, _valid_attack_mask);
-        push_all_pawn_moves(board, pawns, _valid_quiet_mask);
+        if (board.player == Player::white)
+        {
+            moves = pawns << 8 & valid_quiets;
+            push_pawn_moves(moves, 8);
+            moves = (pawns << 8 & board.get_empty_mask() & _double_push_rank) << 8 & valid_quiets;
+            push_pawn_moves(moves, 16);
+            moves = (pawns & ~bitboard::h_file) << 7 & valid_attacks;
+            push_pawn_moves(moves, 7);
+            moves = (pawns & ~bitboard::a_file) << 9 & valid_attacks;
+            push_pawn_moves(moves, 9);
+        }
+        else
+        {
+            moves = pawns >> 8 & valid_quiets;
+            push_pawn_moves(moves, -8);
+            moves = (pawns >> 8 & board.get_empty_mask() & _double_push_rank) >> 8 & valid_quiets;
+            push_pawn_moves(moves, -16);
+            moves = (pawns & ~bitboard::h_file) >> 9 & valid_attacks;
+            push_pawn_moves(moves, -9);
+            moves = (pawns & ~bitboard::a_file) >> 7 & valid_attacks;
+            push_pawn_moves(moves, -7);
+        }
 
         if (board.en_passant)
         {
@@ -254,7 +276,7 @@ public:
                 return;
             }
             uint64_t ep_moves = pawn_attacks(!board.player, board.en_passant) & board.get_piece_mask<Piece::pawn>(board.player) & ~_pin_mask;
-            if (ep_moves && ep_pawn_can_be_captured(board))
+            if (ep_moves && !en_passant_causes_check(board))
             {
                 do
                 {
