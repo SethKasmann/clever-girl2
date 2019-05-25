@@ -90,6 +90,10 @@ struct Board
     void make_move(Move move);
     void unmake_move(Move move);
     void set_pins(Player player);
+    static bool on_same_row(int square0, int square1)
+    {
+        return square0 / 8 == square1 / 8;
+    }
     friend std::ostream& operator<<(std::ostream& o, Board board);
 };
 

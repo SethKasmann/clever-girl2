@@ -25,8 +25,7 @@ Board::Board()
 
 void Board::init()
 {
-    set_pins(Player::white);
-    set_pins(Player::black);
+    set_pins(player);
 }
 
 Piece Board::get_piece(int square) const

@@ -1,327 +1,249 @@
 #ifndef MOVE_LIST_H
 #define MOVE_LIST_H
 
-#include <vector>
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
+#include <vector>
 
-#include "board.h"
 #include "bitboard.h"
+#include "board.h"
+#include "magic_moves.h"
 #include "move.h"
 #include "move_generator.h"
-#include "magic_moves.h"
 
 constexpr uint64_t promotion_mask = bitboard::rank_1 | bitboard::rank_8;
 
-class MoveList
-{
+class MoveList {
 private:
-    std::array<Move, 255> _move_list;
-    size_t _size;
-    uint64_t _check_mask;
-    int _num_checkers;
-    uint64_t _pin_mask;
-    uint64_t _double_push_rank;
-    uint64_t _valid_attack_mask;
-    uint64_t _valid_quiet_mask;
-    uint64_t _opponent_attack_mask;
-    int _forward_delta;
-    int _king_square;
+  std::array<Move, 255> _move_list;
+  size_t _size;
+
 public:
-    MoveList(const Board& board)
-        : _check_mask(0ull), _pin_mask(0ull), _double_push_rank(0ull), _valid_attack_mask(0ull), _valid_quiet_mask(0ull), _size(0), _num_checkers(0), _king_square(0)
-    {
-        _pin_mask = board.pinned & board.get_occupied_mask(board.player);
-        _king_square = board.get_king_square(board.player);
-        _opponent_attack_mask = board.get_attack_mask(!board.player, board.get_occupied_mask() ^ board.get_piece_mask<Piece::king>(board.player));
-        _double_push_rank = board.player == Player::white ? bitboard::rank_3 : bitboard::rank_6;
-        // The amount of shift needed for a pawn push from white's point of view.
-        _forward_delta = board.player == Player::white ? 8 : -8;
+  MoveList(const Board &board) : _size(0) {
+    // First push king moves.
+    uint64_t attacked_squares = board.get_attack_mask(
+        !board.player, board.get_occupied_mask() ^
+                           board.get_piece_mask<Piece::king>(board.player));
+    uint64_t valid_pieces =
+        board.get_occupied_mask(board.player) & ~board.pinned;
+    uint64_t valid_moves = ~board.get_occupied_mask(board.player);
+    push_moves<Piece::king>(board, valid_pieces,
+                            valid_moves & ~attacked_squares);
 
-        if (_opponent_attack_mask & board.get_piece_mask<Piece::king>(board.player))
-        {
-            set_check_mask(board);
-            _num_checkers = bitboard::pop_count(_check_mask);
-        }
-
-        // Handle king moves.
-        _valid_attack_mask = ~_opponent_attack_mask & board.get_occupied_mask(!board.player);
-        _valid_quiet_mask = ~_opponent_attack_mask & board.get_empty_mask();
-        push_moves<Piece::king>(board);
-
-        if (_num_checkers == 0)
-        {
-            // Try and push castle moves if we're not in check.
-            _valid_attack_mask = board.get_occupied_mask(!board.player);
-            _valid_quiet_mask = board.get_empty_mask();
-            generate_castle_moves(board);
-            generate_pinned_piece_moves_new(board);
-        }
-        else if (_num_checkers == 1)
-        {
-            // Evasions - Reset the valid masks.
-            _valid_attack_mask = _check_mask;
-            _valid_quiet_mask = bitboard::between(board.get_king_square(board.player), bitboard::get_lsb(_check_mask));
-        }
-        else if (_num_checkers == 2)
-        {
-            // Double check.
-            return;
-        }
-
-        // Normal Moves.
-        all_pawn_moves(board, board.get_piece_mask<Piece::pawn>(board.player) & ~_pin_mask, _valid_quiet_mask | _valid_attack_mask);
-
-        push_moves<Piece::knight>(board);
-        push_moves<Piece::bishop>(board);
-        push_moves<Piece::rook>(board);
-        push_moves<Piece::queen>(board);
+    if ((attacked_squares & board.get_piece_mask<Piece::king>(board.player)) !=
+        0ull) {
+      uint64_t check_mask = get_checks(board);
+      // Return in the case of double check.
+      if (bitboard::pop_count(check_mask) == 2) {
+        return;
+      }
+      valid_moves =
+          check_mask | bitboard::between(board.get_king_square(board.player),
+                                         bitboard::get_lsb(check_mask));
+    } else {
+      // Push castle moves and pinned pieces moves only when the side to
+      // move is not in check.
+      generate_castle_moves(board, attacked_squares);
+      generate_pinned_piece_moves(board, valid_moves);
     }
 
-    size_t size() const
-    {
-        return _size;
+    // Normal Moves.
+    all_pawn_moves(
+        board, board.get_piece_mask<Piece::pawn>(board.player) & valid_pieces,
+        valid_moves);
+    push_moves<Piece::knight>(board, valid_pieces, valid_moves);
+    push_moves<Piece::bishop>(board, valid_pieces, valid_moves);
+    push_moves<Piece::rook>(board, valid_pieces, valid_moves);
+    push_moves<Piece::queen>(board, valid_pieces, valid_moves);
+  }
+
+  size_t size() const { return _size; }
+
+  Move get_move() {
+    while (_size > 0) {
+      return _move_list[--_size];
+    }
+    return null_move;
+  }
+
+  uint64_t get_checks(const Board &board) {
+    int king_square = board.get_king_square(board.player);
+    uint64_t checkers =
+        (pawn_attacks(board.player, king_square) &
+         board.get_piece_mask<Piece::pawn>(!board.player)) |
+        (attacks_from<Piece::knight>(king_square, board.get_occupied_mask()) &
+         board.get_piece_mask<Piece::knight>(!board.player));
+    uint64_t pseudo_attacks =
+        (bitboard::rook_moves(king_square) &
+         board.get_piece_mask<Piece::rook, Piece::queen>(!board.player)) |
+        (bitboard::bishop_moves(king_square) &
+         board.get_piece_mask<Piece::bishop, Piece::queen>(!board.player));
+    while (pseudo_attacks) {
+      int slider = bitboard::pop_lsb(pseudo_attacks);
+      if ((bitboard::between(slider, king_square) &
+           board.get_occupied_mask()) == 0ull) {
+        checkers |= bitboard::get_bitboard(slider);
+      }
+    }
+    return checkers;
+  }
+
+  void generate_pinned_piece_moves(const Board &board, uint64_t valid) {
+    int king_square = board.get_king_square(board.player);
+    uint64_t pinners = board.pinners;
+    while (pinners) {
+      int slider_square = bitboard::pop_lsb(pinners);
+      int pinned_square = bitboard::get_lsb(
+          bitboard::between(king_square, slider_square) & board.pinned);
+      Piece pinned = board.get_piece(pinned_square);
+      bool is_diagonal = (bitboard::bishop_moves(pinned_square) &
+                          bitboard::get_bitboard(slider_square)) != 0ull;
+
+      if (pinned == Piece::pawn) {
+        uint64_t moves = is_diagonal
+                             ? bitboard::get_bitboard(slider_square)
+                             : bitboard::between(king_square, slider_square);
+        all_pawn_moves(board, bitboard::get_bitboard(pinned_square),
+                       moves & valid);
+      } else if ((pinned == Piece::bishop && is_diagonal) ||
+                 (pinned == Piece::rook && !is_diagonal) ||
+                 pinned == Piece::queen) {
+        uint64_t moves = (bitboard::between(king_square, slider_square) |
+                          bitboard::get_bitboard(slider_square)) &
+                         valid;
+        while (moves) {
+          _move_list[_size++] = {pinned_square, bitboard::pop_lsb(moves),
+                                 Piece::none};
+        }
+      }
+    }
+  }
+
+  void push_pawn_moves(uint64_t mask, int delta) {
+    // Add pawn promotions to the move list.
+    uint64_t move_mask = mask & promotion_mask;
+    while (move_mask) {
+      int to_square = bitboard::pop_lsb(move_mask);
+      int from_square = to_square - delta;
+
+      _move_list[_size++] = {from_square, to_square, Piece::queen};
+      _move_list[_size++] = {from_square, to_square, Piece::bishop};
+      _move_list[_size++] = {from_square, to_square, Piece::rook};
+      _move_list[_size++] = {from_square, to_square, Piece::knight};
     }
 
-    Move get_move()
-    {
-        while (_size > 0)
-        {
-            return _move_list[--_size];
-        }
-        return null_move;
+    // Add non promotions to the move list.
+    move_mask = mask & ~promotion_mask;
+    while (move_mask) {
+      int square = bitboard::pop_lsb(move_mask);
+      _move_list[_size++] = {square - delta, square, Piece::none};
     }
+  }
 
-    void set_check_mask(const Board& board)
-    {
-        _check_mask = pawn_attacks(board.player, _king_square) & board.get_piece_mask<Piece::pawn>(!board.player)
-            | attacks_from<Piece::knight>(_king_square, board.get_occupied_mask()) & board.get_piece_mask<Piece::knight>(!board.player)
-            | attacks_from<Piece::bishop>(_king_square, board.get_occupied_mask()) & board.get_piece_mask<Piece::bishop, Piece::queen>(!board.player)
-            | attacks_from<Piece::rook>(_king_square, board.get_occupied_mask()) & board.get_piece_mask<Piece::rook, Piece::queen>(!board.player);
+  bool en_passant_causes_check(const Board &board, int from, int ep_capture) {
+    int king_square = board.get_king_square(board.player);
+    // Confirm removing the captured pawn doesn't create a slider checker
+    // along a diagonal.
+    uint64_t checker =
+        attacks_from<Piece::bishop>(ep_capture, board.get_occupied_mask()) &
+        bitboard::bishop_moves(king_square) &
+        board.get_piece_mask<Piece::bishop, Piece::queen>(!board.player);
+    if (checker != 0ull) {
+      return true;
     }
-
-    void push_pinned_slider_moves(int pinned, int slider_attacker)
-    {
-        // Capture the pinned piece.
-        _move_list[_size++] = { pinned, slider_attacker, Piece::none };
-
-        // Quiet moves along the pin ray.
-        uint64_t move_ray = bitboard::between(_king_square, slider_attacker) & _valid_quiet_mask;
-        while (move_ray)
-        {
-            _move_list[_size++] = { pinned, bitboard::pop_lsb(move_ray), Piece::none };
-        }
+    uint64_t new_occupancy =
+        board.get_occupied_mask() ^ bitboard::get_bitboard(from);
+    // Confirm removing the attacking pawn and captured pawn doesn't
+    // create a slider checker along the same rank.
+    if (board.on_same_row(king_square, from) &&
+        (bitboard::between_horizonal(ep_capture, king_square) &
+         new_occupancy) == 0ull) {
+      checker = attacks_from<Piece::rook>(ep_capture, new_occupancy) &
+                bitboard::rook_moves(from) &
+                board.get_piece_mask<Piece::rook, Piece::queen>(!board.player);
+      if (checker != 0ull) {
+        return true;
+      }
     }
+    return false;
+  }
 
-    void generate_pinned_piece_moves_new(const Board& board)
-    {
-        uint64_t pinners = board.pinners & board.get_occupied_mask(!board.player);
-        while (pinners)
-        {
-            int slider_square = bitboard::pop_lsb(pinners);
-            int pinned_square = bitboard::get_lsb(bitboard::between(_king_square, slider_square) & board.pinned);
-            Piece pinned = board.get_piece(pinned_square);
-
-            if (bitboard::bishop_moves(pinned_square) & bitboard::get_bitboard(slider_square))
-            {
-                if (pinned == Piece::pawn)
-                {
-                    push_all_pawn_attacks(board, bitboard::get_bitboard(pinned_square), bitboard::get_bitboard(slider_square));
-                }
-                else if (pinned == Piece::bishop || pinned == Piece::queen)
-                {
-                    push_pinned_slider_moves(pinned_square, slider_square);
-                }
-            }
-            else
-            {
-                if (pinned == Piece::pawn)
-                {
-                    push_all_pawn_moves(board, bitboard::get_bitboard(pinned_square), bitboard::between(_king_square, slider_square));
-                }
-                else if (pinned == Piece::rook || pinned == Piece::queen)
-                {
-                    push_pinned_slider_moves(pinned_square, slider_square);
-                }
-            }
-        }
+  void push_en_passant(const Board &board, uint64_t pawns, uint64_t valid,
+                       int delta) {
+    if (board.en_passant == 0) {
+      return;
     }
-
-    void push_pawn_moves(uint64_t mask, int delta)
-    {
-        // Add pawn promotions to the move list.
-        uint64_t move_mask = mask & promotion_mask;
-        while (move_mask)
-        {
-            int to_square = bitboard::pop_lsb(move_mask);
-            int from_square = to_square - delta;
-
-            _move_list[_size++] = { from_square, to_square, Piece::queen };
-            _move_list[_size++] = { from_square, to_square, Piece::bishop };
-            _move_list[_size++] = { from_square, to_square, Piece::rook };
-            _move_list[_size++] = { from_square, to_square, Piece::knight };
+    int captured = board.en_passant - delta;
+    if ((bitboard::get_bitboard(captured) & valid) != 0ull) {
+      uint64_t moves = pawn_attacks(!board.player, board.en_passant) & pawns;
+      if (moves != 0ull &&
+          !en_passant_causes_check(board, captured, bitboard::get_lsb(moves))) {
+        while (moves) {
+          _move_list[_size++] = {bitboard::pop_lsb(moves), board.en_passant,
+                                 Piece::none};
         }
-
-        // Add non promotions to the move list.
-        move_mask = mask & ~promotion_mask;
-        while (move_mask)
-        {
-            int square = bitboard::pop_lsb(move_mask);
-            _move_list[_size++] = { square - delta, square, Piece::none };
-        }
+      }
     }
+  }
 
-    void push_all_pawn_moves(const Board& board, uint64_t pawn_mask, uint64_t valid_mask)
-    {
-        uint64_t pawn_push = 0ull;
-        uint64_t pawn_dbl_push = 0ull;
+  void all_pawn_moves(const Board &board, uint64_t pawns, uint64_t valid) {
+    const uint64_t valid_attacks =
+        valid & board.get_occupied_mask(!board.player);
+    const uint64_t valid_quiets = valid & board.get_empty_mask();
+    uint64_t moves = 0ull;
 
-        if (board.player == Player::white)
-        {
-            pawn_push = pawn_mask << 8 & valid_mask;
-            push_pawn_moves(pawn_push, 8);
-            pawn_dbl_push = (pawn_mask << 8 & board.get_empty_mask() & _double_push_rank) << 8 & valid_mask;
-            push_pawn_moves(pawn_dbl_push, 16);
-        }
-        else
-        {
-            pawn_push = pawn_mask >> 8 & valid_mask;
-            push_pawn_moves(pawn_push, -8);
-            pawn_dbl_push = (pawn_mask >> 8 & board.get_empty_mask() & _double_push_rank) >> 8 & valid_mask;
-            push_pawn_moves(pawn_dbl_push, -16);
-        }
+    if (board.player == Player::white) {
+      moves = pawns << 8 & valid_quiets;
+      push_pawn_moves(moves, 8);
+      moves = (pawns << 8 & board.get_empty_mask() & bitboard::rank_3) << 8 &
+              valid_quiets;
+      push_pawn_moves(moves, 16);
+      moves = (pawns & ~bitboard::h_file) << 7 & valid_attacks;
+      push_pawn_moves(moves, 7);
+      moves = (pawns & ~bitboard::a_file) << 9 & valid_attacks;
+      push_pawn_moves(moves, 9);
+      push_en_passant(board, pawns, valid, 8);
+    } else {
+      moves = pawns >> 8 & valid_quiets;
+      push_pawn_moves(moves, -8);
+      moves = (pawns >> 8 & board.get_empty_mask() & bitboard::rank_6) >> 8 &
+              valid_quiets;
+      push_pawn_moves(moves, -16);
+      moves = (pawns & ~bitboard::h_file) >> 9 & valid_attacks;
+      push_pawn_moves(moves, -9);
+      moves = (pawns & ~bitboard::a_file) >> 7 & valid_attacks;
+      push_pawn_moves(moves, -7);
+      push_en_passant(board, pawns, valid, -8);
     }
+  }
 
-    void push_all_pawn_attacks(const Board& board, uint64_t pawn_mask, uint64_t valid_mask)
-    {
-        uint64_t pawn_attacks_left = 0ull;
-        uint64_t pawn_attacks_right = 0ull;
-
-        if (board.player == Player::white)
-        {
-            pawn_attacks_left = (pawn_mask & ~bitboard::h_file) << 7 & valid_mask;
-            push_pawn_moves(pawn_attacks_left, 7);
-            pawn_attacks_right = (pawn_mask & ~bitboard::a_file) << 9 & valid_mask;
-            push_pawn_moves(pawn_attacks_right, 9);
-        }
-        else
-        {
-            pawn_attacks_left |= (pawn_mask & ~bitboard::h_file) >> 9 & valid_mask;
-            push_pawn_moves(pawn_attacks_left, -9);
-            pawn_attacks_right |= (pawn_mask & ~bitboard::a_file) >> 7 & valid_mask;
-            push_pawn_moves(pawn_attacks_right, -7);
-        }
+  template <Piece P>
+  void push_moves(const Board &board, uint64_t valid_piece_mask,
+                  uint64_t valid) {
+    // Non pinned pieces only.
+    uint64_t piece_mask =
+        board.get_piece_mask<P>(board.player) & valid_piece_mask;
+    while (piece_mask) {
+      int from_square = bitboard::pop_lsb(piece_mask);
+      uint64_t move_mask =
+          attacks_from<P>(from_square, board.get_occupied_mask()) & valid;
+      while (move_mask) {
+        int to_square = bitboard::pop_lsb(move_mask);
+        _move_list[_size++] = {from_square, to_square, Piece::none};
+      }
     }
+  }
 
-    bool en_passant_causes_check(const Board& board)
-    {
-        int ep_cap_square = board.en_passant - _forward_delta;
-        return bitboard::bishop_moves(ep_cap_square) & board.get_piece_mask<Piece::king>(board.player) != 0u
-            && attacks_from<Piece::bishop>(ep_cap_square, board.get_occupied_mask()) 
-                & bitboard::bishop_moves(_king_square) 
-                & board.get_piece_mask<Piece::bishop, Piece::queen>(!board.player);
+  void generate_castle_moves(const Board &board,
+                             uint64_t opponent_attack_mask) {
+    int king_square = board.get_king_square(board.player);
+    if (board.can_castle_kingside(opponent_attack_mask)) {
+      _move_list[_size++] = {king_square, king_square - 2, Piece::none};
     }
-
-    bool should_check_ep(const Board&board)
-    {
-        bool is_ep_possible = board.en_passant && pawn_attacks(!board.player, board.en_passant) & board.get_piece_mask<Piece::pawn>(board.player);
-
-        if (is_ep_possible)
-        {
-            int ep_cap_square = board.en_passant - _forward_delta;
-            return (bitboard::bishop_moves(ep_cap_square) & board.get_piece_mask<Piece::king>(board.player)
-                && !(bitboard::between(_king_square, ep_cap_square) & board.get_occupied_mask())
-                && bitboard::bishop_moves(ep_cap_square) & bitboard::bishop_moves(_king_square) & board.get_piece_mask<Piece::bishop, Piece::queen>(!board.player))
-                || (ep_cap_square / 8 == _king_square / 8
-                    && bitboard::rook_moves(_king_square) & board.get_piece_mask<Piece::rook, Piece::queen>(!board.player)
-                    && bitboard::pop_count(bitboard::between_horizonal(_king_square, ep_cap_square) & board.get_occupied_mask()) == 1);
-        }
-        return false;
+    if (board.can_castle_queenside(opponent_attack_mask)) {
+      _move_list[_size++] = {king_square, king_square + 2, Piece::none};
     }
-
-    void all_pawn_moves(const Board& board, uint64_t pawns, uint64_t valid)
-    {
-        uint64_t moves = 0ull;
-        uint64_t valid_attacks = valid & board.get_occupied_mask(!board.player);
-        uint64_t valid_quiets = valid & board.get_empty_mask();
-
-        if (board.player == Player::white)
-        {
-            moves = pawns << 8 & valid_quiets;
-            push_pawn_moves(moves, 8);
-            moves = (pawns << 8 & board.get_empty_mask() & _double_push_rank) << 8 & valid_quiets;
-            push_pawn_moves(moves, 16);
-            moves = (pawns & ~bitboard::h_file) << 7 & valid_attacks;
-            push_pawn_moves(moves, 7);
-            moves = (pawns & ~bitboard::a_file) << 9 & valid_attacks;
-            push_pawn_moves(moves, 9);
-        }
-        else
-        {
-            moves = pawns >> 8 & valid_quiets;
-            push_pawn_moves(moves, -8);
-            moves = (pawns >> 8 & board.get_empty_mask() & _double_push_rank) >> 8 & valid_quiets;
-            push_pawn_moves(moves, -16);
-            moves = (pawns & ~bitboard::h_file) >> 9 & valid_attacks;
-            push_pawn_moves(moves, -9);
-            moves = (pawns & ~bitboard::a_file) >> 7 & valid_attacks;
-            push_pawn_moves(moves, -7);
-        }
-
-        if (board.en_passant)
-        {
-            int ep_cap_square = board.en_passant - _forward_delta;
-            if (_num_checkers == 1 && !(bitboard::get_bitboard(ep_cap_square) & _check_mask))
-            {
-                return;
-            }
-            uint64_t ep_moves = pawn_attacks(!board.player, board.en_passant) & board.get_piece_mask<Piece::pawn>(board.player) & ~_pin_mask;
-            if (ep_moves && !en_passant_causes_check(board))
-            {
-                do
-                {
-                    int from = bitboard::pop_lsb(ep_moves);
-                    if (!(_king_square / 8 == from / 8
-                        && !(bitboard::between_horizonal(ep_cap_square, _king_square) & (board.get_occupied_mask() ^ bitboard::get_bitboard(from)))
-                        && attacks_from<Piece::rook>(ep_cap_square, board.get_occupied_mask() ^ bitboard::get_bitboard(from))
-                            & bitboard::rook_moves(_king_square) & board.get_piece_mask<Piece::rook, Piece::queen>(!board.player)))
-                    {
-                        _move_list[_size++] = { from, board.en_passant, Piece::none };
-                    }
-                } while (ep_moves);
-            }
-        }
-    }
-
-    template<Piece P>
-    void push_moves(const Board & board)
-    {
-        // Non pinned pieces only.
-        uint64_t piece_mask = board.get_piece_mask<P>(board.player) & ~_pin_mask;
-        while (piece_mask)
-        {
-            int from_square = bitboard::pop_lsb(piece_mask);
-            uint64_t move_mask = attacks_from<P>(from_square, board.get_occupied_mask()) & (_valid_attack_mask | _valid_quiet_mask);
-            while (move_mask)
-            {
-                int to_square = bitboard::pop_lsb(move_mask);
-                _move_list[_size++] = { from_square, to_square, Piece::none };
-            }
-        }
-    }
-
-    void generate_castle_moves(const Board& board)
-    {
-        if (board.can_castle_kingside(_opponent_attack_mask))
-        {
-            _move_list[_size++] = { _king_square, _king_square - 2, Piece::none };
-        }
-        if (board.can_castle_queenside(_opponent_attack_mask))
-        {
-            _move_list[_size++] = { _king_square, _king_square + 2, Piece::none };
-        }
-    }
-
+  }
 };
 
 #endif
