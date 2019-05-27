@@ -72,18 +72,13 @@
  *3. This notice may not be removed or altered from any source distribution.
  */
 
- /*
-  * The original code by Pradyumna Kannan has been updated by Seth Kasmann
-  * on 4/13/2019 to add knight and king moves to the library.
-  */
-
 #ifndef _magicmovesh
 #define _magicmovesh
 
-  /*********MODIFY THE FOLLOWING IF NECESSARY********/
-  //the default configuration is the best
+ /*********MODIFY THE FOLLOWING IF NECESSARY********/
+ //the default configuration is the best
 
-  //Uncommont either one of the following or none
+ //Uncommont either one of the following or none
 #define MINIMIZE_MAGIC
 //#define PERFECT_MAGIC_HASH unsigned short
 
@@ -122,13 +117,10 @@ typedef unsigned long long  U64; //Supported by MSC 13.00+ and C99
 #endif
 #endif
 
-extern U64 magic_moves_p_mask[2][64];
-extern const U64 magic_moves_n_mask[64];
 extern const U64 magicmoves_r_magics[64];
 extern const U64 magicmoves_r_mask[64];
 extern const U64 magicmoves_b_magics[64];
 extern const U64 magicmoves_b_mask[64];
-extern const U64 magic_moves_k_mask[64];
 extern const unsigned int magicmoves_b_shift[64];
 extern const unsigned int magicmoves_r_shift[64];
 
@@ -144,11 +136,8 @@ extern const unsigned int magicmoves_r_shift[64];
 #ifdef MINIMIZE_MAGIC
 
 #ifndef USE_INLINING
-#define Pmagic(square, occupancy, color) magic_moves_p_mask[color][square]&occupancy
-#define Nmagic(square, occupancy) magic_moves_n_mask[square]
 #define Bmagic(square, occupancy) *(magicmoves_b_indices[square]+((((occupancy)&magicmoves_b_mask[square])*magicmoves_b_magics[square])>>magicmoves_b_shift[square]))
 #define Rmagic(square, occupancy) *(magicmoves_r_indices[square]+((((occupancy)&magicmoves_r_mask[square])*magicmoves_r_magics[square])>>magicmoves_r_shift[square]))
-#define Kmagic(square, occupancy) magic_moves_k_mask[square]
 #define BmagicNOMASK(square, occupancy) *(magicmoves_b_indices[square]+(((occupancy)*magicmoves_b_magics[square])>>magicmoves_b_shift[square]))
 #define RmagicNOMASK(square, occupancy) *(magicmoves_r_indices[square]+(((occupancy)*magicmoves_r_magics[square])>>magicmoves_r_shift[square]))
 #endif //USE_INLINING
@@ -162,11 +151,8 @@ extern const U64* magicmoves_r_indices[64];
 #else //Don't Minimize database size
 
 #ifndef USE_INLINING
-#define Pmagic(square, occupancy, color) magic_moves_p_mask[color][square]&occupancy
-#define Nmagic(square, occupancy) magic_moves_n_mask[square]
 #define Bmagic(square, occupancy) magicmovesbdb[square][(((occupancy)&magicmoves_b_mask[square])*magicmoves_b_magics[square])>>MINIMAL_B_BITS_SHIFT(square)]
 #define Rmagic(square, occupancy) magicmovesrdb[square][(((occupancy)&magicmoves_r_mask[square])*magicmoves_r_magics[square])>>MINIMAL_R_BITS_SHIFT(square)]
-#define Kmagic(square, occupancy) magic_moves_k_mask[square]
 #define BmagicNOMASK(square, occupancy) magicmovesbdb[square][((occupancy)*magicmoves_b_magics[square])>>MINIMAL_B_BITS_SHIFT(square)]
 #define RmagicNOMASK(square, occupancy) magicmovesrdb[square][((occupancy)*magicmoves_r_magics[square])>>MINIMAL_R_BITS_SHIFT(square)]
 #endif //USE_INLINING
@@ -179,11 +165,8 @@ extern U64 magicmovesrdb[64][1 << 12];
 #ifndef MINIMIZE_MAGIC
 
 #ifndef USE_INLINING
-#define Pmagic(square, occupancy, color) magic_moves_p_mask[color][square]&occupancy
-#define Nmagic(square, occupancy) magic_moves_n_mask[square]
 #define Bmagic(square, occupancy) magicmovesbdb[magicmoves_b_indices[square][(((occupancy)&magicmoves_b_mask[square])*magicmoves_b_magics[square])>>MINIMAL_B_BITS_SHIFT(square)]]
 #define Rmagic(square, occupancy) magicmovesrdb[magicmoves_r_indices[square][(((occupancy)&magicmoves_r_mask[square])*magicmoves_r_magics[square])>>MINIMAL_R_BITS_SHIFT(square)]]
-#define Kmagic(square, occupancy) magic_moves_k_mask[square]
 #define BmagicNOMASK(square, occupancy) magicmovesbdb[magicmoves_b_indices[square][((occupancy)*magicmoves_b_magics[square])>>MINIMAL_B_BITS_SHIFT(square)]]
 #define RmagicNOMASK(square, occupancy) magicmovesrdb[magicmoves_r_indices[square][((occupancy)*magicmoves_r_magics[square])>>MINIMAL_R_BITS_SHIFT(square)]]
 #endif //USE_INLINING
@@ -198,74 +181,62 @@ extern PERFECT_MAGIC_HASH magicmoves_r_indices[64][1 << 12];
 #endif //PERFCT_MAGIC_HASH
 
 #ifdef USE_INLINING
-static MMINLINE U64 Pmagic(const unsigned int square, const U64 occupancy, const unsigned int color)
-{
-	return magic_moves_p_mask[color][square] & occupancy;
-}
-static MMINLINE U64 Nmagic(const unsigned int square, const U64 occupancy)
-{
-	return magic_moves_n_mask[square];
-}
 static MMINLINE U64 Bmagic(const unsigned int square, const U64 occupancy)
 {
 #ifndef PERFECT_MAGIC_HASH
 #ifdef MINIMIZE_MAGIC
-	return *(magicmoves_b_indices[square] + (((occupancy&magicmoves_b_mask[square])*magicmoves_b_magics[square]) >> magicmoves_b_shift[square]));
+    return *(magicmoves_b_indices[square] + (((occupancy&magicmoves_b_mask[square])*magicmoves_b_magics[square]) >> magicmoves_b_shift[square]));
 #else
-	return magicmovesbdb[square][(((occupancy)&magicmoves_b_mask[square])*magicmoves_b_magics[square]) >> MINIMAL_B_BITS_SHIFT(square)];
+    return magicmovesbdb[square][(((occupancy)&magicmoves_b_mask[square])*magicmoves_b_magics[square]) >> MINIMAL_B_BITS_SHIFT(square)];
 #endif
 #else
-	return magicmovesbdb[magicmoves_b_indices[square][(((occupancy)&magicmoves_b_mask[square])*magicmoves_b_magics[square]) >> MINIMAL_B_BITS_SHIFT(square)]];
+    return magicmovesbdb[magicmoves_b_indices[square][(((occupancy)&magicmoves_b_mask[square])*magicmoves_b_magics[square]) >> MINIMAL_B_BITS_SHIFT(square)]];
 #endif
 }
 static MMINLINE U64 Rmagic(const unsigned int square, const U64 occupancy)
 {
 #ifndef PERFECT_MAGIC_HASH
 #ifdef MINIMIZE_MAGIC
-	return *(magicmoves_r_indices[square] + (((occupancy&magicmoves_r_mask[square])*magicmoves_r_magics[square]) >> magicmoves_r_shift[square]));
+    return *(magicmoves_r_indices[square] + (((occupancy&magicmoves_r_mask[square])*magicmoves_r_magics[square]) >> magicmoves_r_shift[square]));
 #else
-	return magicmovesrdb[square][(((occupancy)&magicmoves_r_mask[square])*magicmoves_r_magics[square]) >> MINIMAL_R_BITS_SHIFT(square)];
+    return magicmovesrdb[square][(((occupancy)&magicmoves_r_mask[square])*magicmoves_r_magics[square]) >> MINIMAL_R_BITS_SHIFT(square)];
 #endif
 #else
-	return magicmovesrdb[magicmoves_r_indices[square][(((occupancy)&magicmoves_r_mask[square])*magicmoves_r_magics[square]) >> MINIMAL_R_BITS_SHIFT(square)]];
+    return magicmovesrdb[magicmoves_r_indices[square][(((occupancy)&magicmoves_r_mask[square])*magicmoves_r_magics[square]) >> MINIMAL_R_BITS_SHIFT(square)]];
 #endif
-}
-static MMINLINE U64 Kmagic(const unsigned int square, const U64 occupancy)
-{
-	return magic_moves_k_mask[square];
 }
 static MMINLINE U64 BmagicNOMASK(const unsigned int square, const U64 occupancy)
 {
 #ifndef PERFECT_MAGIC_HASH
 #ifdef MINIMIZE_MAGIC
-	return *(magicmoves_b_indices[square] + (((occupancy)*magicmoves_b_magics[square]) >> magicmoves_b_shift[square]));
+    return *(magicmoves_b_indices[square] + (((occupancy)*magicmoves_b_magics[square]) >> magicmoves_b_shift[square]));
 #else
-	return magicmovesbdb[square][((occupancy)*magicmoves_b_magics[square]) >> MINIMAL_B_BITS_SHIFT(square)];
+    return magicmovesbdb[square][((occupancy)*magicmoves_b_magics[square]) >> MINIMAL_B_BITS_SHIFT(square)];
 #endif
 #else
-	return magicmovesbdb[magicmoves_b_indices[square][((occupancy)*magicmoves_b_magics[square]) >> MINIMAL_B_BITS_SHIFT(square)]];
+    return magicmovesbdb[magicmoves_b_indices[square][((occupancy)*magicmoves_b_magics[square]) >> MINIMAL_B_BITS_SHIFT(square)]];
 #endif
 }
 static MMINLINE U64 RmagicNOMASK(const unsigned int square, const U64 occupancy)
 {
 #ifndef PERFECT_MAGIC_HASH
 #ifdef MINIMIZE_MAGIC
-	return *(magicmoves_r_indices[square] + (((occupancy)*magicmoves_r_magics[square]) >> magicmoves_r_shift[square]));
+    return *(magicmoves_r_indices[square] + (((occupancy)*magicmoves_r_magics[square]) >> magicmoves_r_shift[square]));
 #else
-	return magicmovesrdb[square][((occupancy)*magicmoves_r_magics[square]) >> MINIMAL_R_BITS_SHIFT(square)];
+    return magicmovesrdb[square][((occupancy)*magicmoves_r_magics[square]) >> MINIMAL_R_BITS_SHIFT(square)];
 #endif
 #else
-	return magicmovesrdb[magicmoves_r_indices[square][((occupancy)*magicmoves_r_magics[square]) >> MINIMAL_R_BITS_SHIFT(square)]];
+    return magicmovesrdb[magicmoves_r_indices[square][((occupancy)*magicmoves_r_magics[square]) >> MINIMAL_R_BITS_SHIFT(square)]];
 #endif
 }
 
 static MMINLINE U64 Qmagic(const unsigned int square, const U64 occupancy)
 {
-	return Bmagic(square, occupancy) | Rmagic(square, occupancy);
+    return Bmagic(square, occupancy) | Rmagic(square, occupancy);
 }
 static MMINLINE U64 QmagicNOMASK(const unsigned int square, const U64 occupancy)
 {
-	return BmagicNOMASK(square, occupancy) | RmagicNOMASK(square, occupancy);
+    return BmagicNOMASK(square, occupancy) | RmagicNOMASK(square, occupancy);
 }
 #else //!USE_INLINING
 

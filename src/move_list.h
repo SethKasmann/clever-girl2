@@ -17,7 +17,6 @@ class MoveList {
 private:
   std::array<Move, 255> _move_list;
   size_t _size;
-
 public:
   MoveList(const Board &board) : _size(0) {
     // First push king moves.
@@ -69,14 +68,14 @@ public:
   uint64_t get_checks(const Board &board) {
     int king_square = board.get_king_square(board.player);
     uint64_t checkers =
-        (pawn_attacks(board.player, king_square) &
+        (pseudo_pawn_attacks(board.player, king_square) &
          board.get_piece_mask<Piece::pawn>(!board.player)) |
         (attacks_from<Piece::knight>(king_square, board.get_occupied_mask()) &
          board.get_piece_mask<Piece::knight>(!board.player));
     uint64_t pseudo_attacks =
-        (bitboard::rook_moves(king_square) &
+        (pseudo_rook_moves(king_square) &
          board.get_piece_mask<Piece::rook, Piece::queen>(!board.player)) |
-        (bitboard::bishop_moves(king_square) &
+        (pseudo_bishop_moves(king_square) &
          board.get_piece_mask<Piece::bishop, Piece::queen>(!board.player));
     while (pseudo_attacks) {
       int slider = bitboard::pop_lsb(pseudo_attacks);
@@ -96,7 +95,7 @@ public:
       int pinned_square = bitboard::get_lsb(
           bitboard::between(king_square, slider_square) & board.pinned);
       Piece pinned = board.get_piece(pinned_square);
-      bool is_diagonal = (bitboard::bishop_moves(pinned_square) &
+      bool is_diagonal = (pseudo_bishop_moves(pinned_square) &
                           bitboard::get_bitboard(slider_square)) != 0ull;
 
       if (pinned == Piece::pawn) {
@@ -146,7 +145,7 @@ public:
     // along a diagonal.
     uint64_t checker =
         attacks_from<Piece::bishop>(ep_capture, board.get_occupied_mask()) &
-        bitboard::bishop_moves(king_square) &
+        pseudo_bishop_moves(king_square) &
         board.get_piece_mask<Piece::bishop, Piece::queen>(!board.player);
     if (checker != 0ull) {
       return true;
@@ -159,7 +158,7 @@ public:
         (bitboard::between_horizonal(ep_capture, king_square) &
          new_occupancy) == 0ull) {
       checker = attacks_from<Piece::rook>(ep_capture, new_occupancy) &
-                bitboard::rook_moves(from) &
+                pseudo_rook_moves(from) &
                 board.get_piece_mask<Piece::rook, Piece::queen>(!board.player);
       if (checker != 0ull) {
         return true;
@@ -175,7 +174,7 @@ public:
     }
     int captured = board.en_passant - delta;
     if ((bitboard::get_bitboard(captured) & valid) != 0ull) {
-      uint64_t moves = pawn_attacks(!board.player, board.en_passant) & pawns;
+      uint64_t moves = pseudo_pawn_attacks(!board.player, board.en_passant) & pawns;
       if (moves != 0ull &&
           !en_passant_causes_check(board, captured, bitboard::get_lsb(moves))) {
         while (moves) {
@@ -217,16 +216,15 @@ public:
     }
   }
 
-  template <Piece P>
+  template <Piece Stm>
   void push_moves(const Board &board, uint64_t valid_piece_mask,
                   uint64_t valid) {
-    // Non pinned pieces only.
     uint64_t piece_mask =
-        board.get_piece_mask<P>(board.player) & valid_piece_mask;
+        board.get_piece_mask<Stm>(board.player) & valid_piece_mask;
     while (piece_mask) {
       int from_square = bitboard::pop_lsb(piece_mask);
       uint64_t move_mask =
-          attacks_from<P>(from_square, board.get_occupied_mask()) & valid;
+          attacks_from<Stm>(from_square, board.get_occupied_mask()) & valid;
       while (move_mask) {
         int to_square = bitboard::pop_lsb(move_mask);
         _move_list[_size++] = {from_square, to_square, Piece::none};

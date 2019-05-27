@@ -25,6 +25,7 @@
     <ClCompile Include="src\hash.cpp" />
     <ClCompile Include="src\magic_moves.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\move_generator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\assert.h" />

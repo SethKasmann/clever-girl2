@@ -13,6 +13,12 @@
 namespace bitboard
 {
     constexpr uint64_t a_file = 0x8080808080808080;
+    constexpr uint64_t b_file = 0x4040404040404040;
+    constexpr uint64_t c_file = 0x2020202020202020;
+    constexpr uint64_t d_file = 0x1010101010101010;
+    constexpr uint64_t e_file = 0x0808080808080808;
+    constexpr uint64_t f_file = 0x0404040404040404;
+    constexpr uint64_t g_file = 0x0202020202020202;
     constexpr uint64_t h_file = 0x0101010101010101;
 
     constexpr uint64_t rank_1 = 0x00000000000000ff;

@@ -57,17 +57,17 @@ struct Board
     uint64_t pinners;
     uint64_t pinned;
 
-    template<Piece... P>
+    template<Piece... Stm>
     uint64_t get_piece_mask() const noexcept
     {
-        static_assert(((P >= Piece::pawn && P <= Piece::king) && ...));
-        return (std::get<P>(pieces) | ...);
+        static_assert(((Stm >= Piece::pawn && Stm <= Piece::king) && ...));
+        return (std::get<Stm>(pieces) | ...);
     }
 
-    template<Piece... P>
+    template<Piece... Stm>
     uint64_t get_piece_mask(Player player) const
     {
-        return occupancy[player] & get_piece_mask<P...>();
+        return occupancy[player] & get_piece_mask<Stm...>();
     }
 
     int get_king_square(Player player) const
@@ -82,8 +82,6 @@ struct Board
     uint64_t get_occupied_mask() const noexcept;
     uint64_t get_empty_mask() const noexcept;
     uint64_t get_attack_mask(Player player, uint64_t occupancy) const;
-    bool is_attacked(int square, Player player) const;
-    bool is_attacked(int square, Player player, uint64_t occupancy) const;
     bool can_castle_kingside(uint64_t attack_mask) const;
     bool can_castle_queenside(uint64_t attack_mask) const;
     bool is_valid() const;

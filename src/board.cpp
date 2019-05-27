@@ -1,6 +1,6 @@
 #include "board.h"
 #include "hash.h"
-#include "magic_moves.h"
+#include "move_generator.h"
 
 constexpr unsigned kingside_castle_white = 1;
 constexpr unsigned queenside_castle_white = 2;
@@ -91,23 +91,9 @@ uint64_t Board::get_attack_mask(Player player, uint64_t occupancy) const
         attacks |= attacks_from<Piece::rook>(bitboard::pop_lsb(h_sliders), occupancy);
     }
 
-    attacks |= Kmagic(get_king_square(player), occupancy);
+    attacks |= pseudo_king_moves(get_king_square(player));
 
     return attacks;
-}
-
-bool Board::is_attacked(int square, Player player) const
-{
-    return is_attacked(square, player, get_occupied_mask());
-}
-
-bool Board::is_attacked(int square, Player player, uint64_t occupancy) const
-{
-    return (pawn_attacks(player, square) & occupancy & get_piece_mask<Piece::pawn>(!player))
-        | (attacks_from<Piece::knight>(square, occupancy) & get_piece_mask<Piece::knight>(!player))
-        | (attacks_from<Piece::bishop>(square, occupancy) & get_piece_mask<Piece::bishop, Piece::queen>(!player))
-        | (attacks_from<Piece::rook>(square, occupancy) & get_piece_mask<Piece::rook, Piece::queen>(!player))
-        | (attacks_from<Piece::king>(square, occupancy) & get_piece_mask<Piece::king>(!player));
 }
 
 bool Board::can_castle_kingside(uint64_t attack_mask) const
@@ -303,8 +289,8 @@ void Board::unmake_move(Move move)
 void Board::set_pins(Player player)
 {
     int king_square = get_king_square(player);
-    uint64_t pseudo_attacks = (bitboard::rook_moves(king_square) & get_piece_mask<Piece::rook, Piece::queen>(!player))
-        | (bitboard::bishop_moves(king_square) & get_piece_mask<Piece::bishop, Piece::queen>(!player));
+    uint64_t pseudo_attacks = (pseudo_rook_moves(king_square) & get_piece_mask<Piece::rook, Piece::queen>(!player))
+        | (pseudo_bishop_moves(king_square) & get_piece_mask<Piece::bishop, Piece::queen>(!player));
     while (pseudo_attacks)
     {
         int slider = bitboard::pop_lsb(pseudo_attacks);
