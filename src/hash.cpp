@@ -7,7 +7,7 @@
 
 struct ZobristKeys
 {
-    std::array<uint64_t, 2> player_keys;
+    uint64_t player_key;
     std::array<uint64_t, 16> castle_keys;
     std::array<uint64_t, 8> en_passant_keys;
     std::array<uint64_t, 896> piece_keys;
@@ -15,7 +15,7 @@ struct ZobristKeys
 
 uint64_t& set_key(uint64_t& key, Player player)
 {
-    key ^= zobrist_keys.player_keys[player];
+    key ^= zobrist_keys.player_key;
     return key;
 }
 
@@ -33,7 +33,7 @@ uint64_t& set_key(uint64_t& key, int en_passant_square)
 
 uint64_t& set_key(uint64_t& key, Player player, Piece piece, int square)
 {
-    key ^= zobrist_keys.piece_keys[player + 2 * (piece + 7 * square)];
+    key ^= zobrist_keys.piece_keys[static_cast<int>(player) + 2 * (piece + 7 * square)];
     return key;
 }
 
@@ -45,7 +45,7 @@ void hash_init()
     std::uniform_int_distribution<uint64_t> d;
 
     std::vector<uint64_t> distinct_keys;
-    while (distinct_keys.size() < 922)
+    while (distinct_keys.size() < 921)
     {
         uint64_t rand_key = d(mt);
         if (std::find(distinct_keys.begin(), distinct_keys.end(), rand_key) == distinct_keys.end())
@@ -54,11 +54,9 @@ void hash_init()
         }
     }
 
+
     int copy_idx = 0;
-    for (uint64_t& key : zobrist_keys.player_keys)
-    {
-        key = distinct_keys[copy_idx++];
-    }
+    zobrist_keys.player_key = distinct_keys[copy_idx++];
 
     for (uint64_t& key : zobrist_keys.castle_keys)
     {

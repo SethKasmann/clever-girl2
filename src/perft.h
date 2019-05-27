@@ -122,6 +122,7 @@ public:
     }
 };
 
+template<Player Stm>
 inline uint64_t perft(Board& board, int depth)
 {
     if (depth == 0)
@@ -129,7 +130,7 @@ inline uint64_t perft(Board& board, int depth)
         return 1ull;
     }
 
-    MoveList move_list(board);
+    MoveList<Stm> move_list(board);
     // Bulk counting.
     if (depth == 1)
     {
@@ -140,9 +141,9 @@ inline uint64_t perft(Board& board, int depth)
     Move move = move_list.get_move();
     for (; move != null_move; move = move_list.get_move())
     {
-        board.make_move(move);
-        nodes += perft(board, depth - 1);
-        board.unmake_move(move);
+        board.make_move<Stm>(move);
+        nodes += perft<!Stm>(board, depth - 1);
+        board.unmake_move<Stm>(move);
     }
     return nodes;
 }
@@ -158,7 +159,7 @@ inline void run_tests(std::vector<PerftTest>& perft_tests)
 
         std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
 
-        uint64_t nodes = perft(board, depth);
+        uint64_t nodes = board.player == Player::white ? perft<Player::white>(board, depth) : perft<Player::black>(board, depth);
         perft_test.set_nodes(nodes);
 
         std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();

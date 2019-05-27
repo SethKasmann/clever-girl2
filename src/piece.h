@@ -13,7 +13,8 @@ enum Piece
     rook,
     queen,
     king,
-    count
+    count,
+    all
 };
 
 inline constexpr bool operator==(Piece first, Piece second)

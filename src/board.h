@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "bitboard.h"
-#include "move_generator.h"
 #include "piece.h"
 #include "player.h"
 #include "move.h"
@@ -57,37 +56,63 @@ struct Board
     uint64_t pinners;
     uint64_t pinned;
 
-    template<Piece... Stm>
+    template<Piece... P>
     uint64_t get_piece_mask() const noexcept
     {
-        static_assert(((Stm >= Piece::pawn && Stm <= Piece::king) && ...));
-        return (std::get<Stm>(pieces) | ...);
+        static_assert(((P >= Piece::pawn && P <= Piece::king) && ...));
+        return (std::get<P>(pieces) | ...);
     }
 
-    template<Piece... Stm>
+    /*template<Piece... P>
     uint64_t get_piece_mask(Player player) const
     {
-        return occupancy[player] & get_piece_mask<Stm...>();
+        return occupancy[player] & get_piece_mask<P...>();
+    }*/
+
+    template<Player Stm, Piece... P>
+    uint64_t get_piece_mask() const
+    {
+        return std::get<Stm>(occupancy) & get_piece_mask<P...>();
     }
 
-    int get_king_square(Player player) const
+    /*template<Player Stm>
+    uint64_t get_piece_mask() const noexcept
+    {
+        return std::get<Stm>(occupancy);
+    }*/
+
+    template<Player Stm>
+    int get_king_square() const
+    {
+        return bitboard::get_lsb(get_piece_mask<Stm, Piece::king>());
+    }
+
+    /*int get_king_square(Player player) const
     {
         return bitboard::get_lsb(get_piece_mask<Piece::king>(player));
-    }
+    }*/
 
     Piece get_piece(int square) const;
     void put_piece(Player player, Piece piece, int square);
     void remove_piece(Player player, int square);
+    template<Player Stm>
+    uint64_t get_occupied_mask() const noexcept;
     uint64_t get_occupied_mask(Player player) const;
     uint64_t get_occupied_mask() const noexcept;
     uint64_t get_empty_mask() const noexcept;
-    uint64_t get_attack_mask(Player player, uint64_t occupancy) const;
+    template<Player Stm>
+    uint64_t get_attack_mask(uint64_t occupancy) const;
+    template<Player Stm>
     bool can_castle_kingside(uint64_t attack_mask) const;
+    template<Player Stm>
     bool can_castle_queenside(uint64_t attack_mask) const;
     bool is_valid() const;
+    template<Player Stm>
     void make_move(Move move);
+    template<Player Stm>
     void unmake_move(Move move);
-    void set_pins(Player player);
+    template<Player Stm>
+    void set_pins();
     static bool on_same_row(int square0, int square1)
     {
         return square0 / 8 == square1 / 8;

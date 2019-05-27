@@ -25,7 +25,14 @@ Board::Board()
 
 void Board::init()
 {
-    set_pins(player);
+    if (player == Player::white)
+    {
+        set_pins<Player::white>();
+    }
+    else
+    {
+        set_pins<Player::black>();
+    }
 }
 
 Piece Board::get_piece(int square) const
@@ -57,6 +64,15 @@ uint64_t Board::get_occupied_mask(Player player) const
     return occupancy[player];
 }
 
+template<Player Stm>
+uint64_t Board::get_occupied_mask() const noexcept
+{
+    return std::get<Stm>(occupancy);
+}
+
+template uint64_t Board::get_occupied_mask<Player::white>() const noexcept;
+template uint64_t Board::get_occupied_mask<Player::black>() const noexcept;
+
 uint64_t Board::get_occupied_mask() const noexcept
 {
     return std::get<Player::white>(occupancy) | std::get<Player::black>(occupancy);
@@ -67,41 +83,57 @@ uint64_t Board::get_empty_mask() const noexcept
     return ~(get_occupied_mask());
 }
 
-uint64_t Board::get_attack_mask(Player player, uint64_t occupancy) const
+template<Player Stm>
+uint64_t Board::get_attack_mask(uint64_t occupancy) const
 {
-    uint64_t attacks = 0ull;
+    MoveGen<Stm> gen(occupancy);
+    return gen.attacks_by<Piece::pawn>(get_piece_mask<Stm, Piece::pawn>()) |
+        gen.attacks_by<Piece::knight>(get_piece_mask<Stm, Piece::knight>()) |
+        gen.attacks_by<Piece::bishop>(get_piece_mask<Stm, Piece::bishop, Piece::queen>()) |
+        gen.attacks_by<Piece::rook>(get_piece_mask<Stm, Piece::rook, Piece::queen>()) |
+        gen.attacks_by<Piece::king>(get_piece_mask<Stm, Piece::king>());
+    //uint64_t attacks = 0ull;
 
-    attacks |= pawn_attacks(player, get_piece_mask<Piece::pawn>(player));
+    //attacks |= gen.attacks_by<Piece::pawn>(get_piece_mask<Stm, Piece::pawn>());
+    //attacks |= pawn_attacks(Stm, get_piece_mask<Stm, Piece::pawn>());
 
-    uint64_t knights = get_piece_mask<Piece::knight>(player);
-    while (knights)
-    {
-        attacks |= attacks_from<Piece::knight>(bitboard::pop_lsb(knights), occupancy);
-    }
+    //uint64_t knights = get_piece_mask<Stm, Piece::knight>();
+    //while (knights)
+    //{
+    //    attacks |= gen.attacks_from<Piece::knight>(bitboard::pop_lsb(knights));
+    //    //attacks |= attacks_from<Piece::knight>(bitboard::pop_lsb(knights), occupancy);
+    //}
 
-    uint64_t d_sliders = get_piece_mask<Piece::bishop, Piece::queen>(player);
-    while (d_sliders)
-    {
-        attacks |= attacks_from<Piece::bishop>(bitboard::pop_lsb(d_sliders), occupancy);
-    }
+    //uint64_t d_sliders = get_piece_mask<Stm, Piece::bishop, Piece::queen>();
+    //while (d_sliders)
+    //{
+    //    attacks |= gen.attacks_from<Piece::bishop>(bitboard::pop_lsb(d_sliders));
+    //    //attacks |= attacks_from<Piece::bishop>(bitboard::pop_lsb(d_sliders), occupancy);
+    //}
 
-    uint64_t h_sliders = get_piece_mask<Piece::rook, Piece::queen>(player);
-    while (h_sliders)
-    {
-        attacks |= attacks_from<Piece::rook>(bitboard::pop_lsb(h_sliders), occupancy);
-    }
+    //uint64_t h_sliders = get_piece_mask<Stm, Piece::rook, Piece::queen>();
+    //while (h_sliders)
+    //{
+    //    attacks |= gen.attacks_from<Piece::rook>(bitboard::pop_lsb(h_sliders));
+    //    //attacks |= attacks_from<Piece::rook>(bitboard::pop_lsb(h_sliders), occupancy);
+    //}
 
-    attacks |= pseudo_king_moves(get_king_square(player));
+    //attacks |= pseudo_king_moves(get_king_square<Stm>());
 
-    return attacks;
+    //return attacks;
 }
 
+template uint64_t Board::get_attack_mask<Player::white>(uint64_t occupancy) const;
+template uint64_t Board::get_attack_mask<Player::black>(uint64_t occupancy) const;
+
+template<Player Stm>
 bool Board::can_castle_kingside(uint64_t attack_mask) const
 {
+    constexpr uint64_t kingside_castle_rights = Stm == Player::white ? kingside_castle_white : kingside_castle_black;
     bool can_castle = false;
-    if (castle_rights & (player == Player::white ? kingside_castle_white : kingside_castle_black))
+    if ((castle_rights & kingside_castle_rights) != 0ull)
     {
-        int king_square = get_king_square(player);
+        int king_square = get_king_square<Stm>();
 
         // Confirm there are no pieces blocking the king from castling and the king does not pass
         // through an attacked square.
@@ -111,12 +143,17 @@ bool Board::can_castle_kingside(uint64_t attack_mask) const
     return can_castle;
 }
 
+template bool Board::can_castle_kingside<Player::white>(uint64_t attack_mask) const;
+template bool Board::can_castle_kingside<Player::black> (uint64_t attack_mask) const;
+
+template<Player Stm>
 bool Board::can_castle_queenside(uint64_t attack_mask) const
 {
+    constexpr uint64_t queenside_castle_rights = Stm == Player::white ? queenside_castle_white : queenside_castle_black;
     bool can_castle = false;
-    if (castle_rights & (player == Player::white ? queenside_castle_white : queenside_castle_black))
+    if ((castle_rights & queenside_castle_rights) != 0ull)
     {
-        int king_square = get_king_square(player);
+        int king_square = get_king_square<Stm>();
 
         // Confirm there are no pieces blocking the king from castling and the king does not pass
         // through an attacked square.
@@ -126,6 +163,10 @@ bool Board::can_castle_queenside(uint64_t attack_mask) const
     return can_castle;
 }
 
+template bool Board::can_castle_queenside<Player::white>(uint64_t attack_mask) const;
+template bool Board::can_castle_queenside<Player::black>(uint64_t attack_mask) const;
+
+template<Player Stm>
 void Board::make_move(Move move)
 {
     ASSERT(is_valid(), this, "Board did not pass validation.");
@@ -202,11 +243,15 @@ void Board::make_move(Move move)
 
     pinners = 0ull;
     pinned = 0ull;
-    set_pins(player);
+    set_pins<!Stm>();
 
     ASSERT(is_valid(), *this, "Board did not pass validation.");
 }
 
+template void Board::make_move<Player::white>(Move move);
+template void Board::make_move<Player::black>(Move move);
+
+template<Player Stm>
 void Board::unmake_move(Move move)
 {
     ASSERT(is_valid(), this, "Board did not pass validation.");
@@ -286,16 +331,20 @@ void Board::unmake_move(Move move)
     ASSERT(is_valid(), this, "Board did not pass validation.");
 }
 
-void Board::set_pins(Player player)
+template void Board::unmake_move<Player::white>(Move move);
+template void Board::unmake_move<Player::black>(Move move);
+
+template<Player Stm>
+void Board::set_pins()
 {
-    int king_square = get_king_square(player);
-    uint64_t pseudo_attacks = (pseudo_rook_moves(king_square) & get_piece_mask<Piece::rook, Piece::queen>(!player))
-        | (pseudo_bishop_moves(king_square) & get_piece_mask<Piece::bishop, Piece::queen>(!player));
+    int king_square = get_king_square<Stm>();
+    uint64_t pseudo_attacks = (pseudo_rook_moves(king_square) & get_piece_mask<!Stm, Piece::rook, Piece::queen>())
+        | (pseudo_bishop_moves(king_square) & get_piece_mask<!Stm, Piece::bishop, Piece::queen>());
     while (pseudo_attacks)
     {
         int slider = bitboard::pop_lsb(pseudo_attacks);
         uint64_t between = bitboard::between(slider, king_square) & get_occupied_mask();
-        if (between & get_occupied_mask(player) && bitboard::pop_count(between) == 1)
+        if (between & get_occupied_mask<Stm>() && bitboard::pop_count(between) == 1)
         {
             pinners |= bitboard::get_bitboard(slider);
             pinned |= between;
@@ -352,7 +401,7 @@ bool Board::is_valid() const
         std::cout << ++issues << ". The number of kings is not valid at " << number_of_kings << ".\n";
     }
 
-    if (get_piece_mask<Piece::king>(Player::white))
+    /*if (get_piece_mask<Piece::king>(Player::white))
     {
         int king_square = get_king_square(player);
         uint64_t king_moves = attacks_from<Piece::king>(king_square, get_occupied_mask());
@@ -360,7 +409,7 @@ bool Board::is_valid() const
         {
             std::cout << ++issues << ". White and black kings are too close.\n";
         }
-    }
+    }*/
     return issues == 0;
 }
 

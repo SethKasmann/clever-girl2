@@ -13,23 +13,22 @@
 
 constexpr uint64_t promotion_mask = bitboard::rank_1 | bitboard::rank_8;
 
+template<Player Stm>
 class MoveList {
 private:
   std::array<Move, 255> _move_list;
   size_t _size;
+  MoveGen<Stm> _gen;
 public:
-  MoveList(const Board &board) : _size(0) {
+  MoveList(const Board &board) : _size(0), _gen(board.get_occupied_mask()) {
     // First push king moves.
-    uint64_t attacked_squares = board.get_attack_mask(
-        !board.player, board.get_occupied_mask() ^
-                           board.get_piece_mask<Piece::king>(board.player));
-    uint64_t valid_pieces =
-        board.get_occupied_mask(board.player) & ~board.pinned;
-    uint64_t valid_moves = ~board.get_occupied_mask(board.player);
+    uint64_t attacked_squares = board.get_attack_mask<!Stm>(board.get_occupied_mask() ^ board.get_piece_mask<Stm, Piece::king>());
+    uint64_t valid_pieces = board.get_occupied_mask<Stm>() & ~board.pinned;
+    uint64_t valid_moves = ~board.get_occupied_mask<Stm>();
     push_moves<Piece::king>(board, valid_pieces,
                             valid_moves & ~attacked_squares);
 
-    if ((attacked_squares & board.get_piece_mask<Piece::king>(board.player)) !=
+    if ((attacked_squares & board.get_piece_mask<Stm, Piece::king>()) !=
         0ull) {
       uint64_t check_mask = get_checks(board);
       // Return in the case of double check.
@@ -37,7 +36,7 @@ public:
         return;
       }
       valid_moves =
-          check_mask | bitboard::between(board.get_king_square(board.player),
+          check_mask | bitboard::between(board.get_king_square<Stm>(),
                                          bitboard::get_lsb(check_mask));
     } else {
       // Push castle moves and pinned pieces moves only when the side to
@@ -47,9 +46,7 @@ public:
     }
 
     // Normal Moves.
-    all_pawn_moves(
-        board, board.get_piece_mask<Piece::pawn>(board.player) & valid_pieces,
-        valid_moves);
+    all_pawn_moves(board, board.get_piece_mask<Stm, Piece::pawn>() & valid_pieces, valid_moves);
     push_moves<Piece::knight>(board, valid_pieces, valid_moves);
     push_moves<Piece::bishop>(board, valid_pieces, valid_moves);
     push_moves<Piece::rook>(board, valid_pieces, valid_moves);
@@ -66,17 +63,17 @@ public:
   }
 
   uint64_t get_checks(const Board &board) {
-    int king_square = board.get_king_square(board.player);
+    int king_square = board.get_king_square<Stm>();
     uint64_t checkers =
-        (pseudo_pawn_attacks(board.player, king_square) &
-         board.get_piece_mask<Piece::pawn>(!board.player)) |
-        (attacks_from<Piece::knight>(king_square, board.get_occupied_mask()) &
-         board.get_piece_mask<Piece::knight>(!board.player));
+        (pseudo_pawn_attacks(Stm, king_square) &
+         board.get_piece_mask<!Stm, Piece::pawn>()) |
+        (pseudo_knight_moves(king_square) &
+         board.get_piece_mask<!Stm, Piece::knight>());
     uint64_t pseudo_attacks =
         (pseudo_rook_moves(king_square) &
-         board.get_piece_mask<Piece::rook, Piece::queen>(!board.player)) |
+         board.get_piece_mask<!Stm, Piece::rook, Piece::queen>()) |
         (pseudo_bishop_moves(king_square) &
-         board.get_piece_mask<Piece::bishop, Piece::queen>(!board.player));
+         board.get_piece_mask<!Stm, Piece::bishop, Piece::queen>());
     while (pseudo_attacks) {
       int slider = bitboard::pop_lsb(pseudo_attacks);
       if ((bitboard::between(slider, king_square) &
@@ -88,7 +85,7 @@ public:
   }
 
   void generate_pinned_piece_moves(const Board &board, uint64_t valid) {
-    int king_square = board.get_king_square(board.player);
+    int king_square = board.get_king_square<Stm>();
     uint64_t pinners = board.pinners;
     while (pinners) {
       int slider_square = bitboard::pop_lsb(pinners);
@@ -140,13 +137,13 @@ public:
   }
 
   bool en_passant_causes_check(const Board &board, int from, int ep_capture) {
-    int king_square = board.get_king_square(board.player);
+    int king_square = board.get_king_square<Stm>();
     // Confirm removing the captured pawn doesn't create a slider checker
     // along a diagonal.
     uint64_t checker =
         attacks_from<Piece::bishop>(ep_capture, board.get_occupied_mask()) &
         pseudo_bishop_moves(king_square) &
-        board.get_piece_mask<Piece::bishop, Piece::queen>(!board.player);
+        board.get_piece_mask<!Stm, Piece::bishop, Piece::queen>();
     if (checker != 0ull) {
       return true;
     }
@@ -159,7 +156,7 @@ public:
          new_occupancy) == 0ull) {
       checker = attacks_from<Piece::rook>(ep_capture, new_occupancy) &
                 pseudo_rook_moves(from) &
-                board.get_piece_mask<Piece::rook, Piece::queen>(!board.player);
+                board.get_piece_mask<!Stm, Piece::rook, Piece::queen>();
       if (checker != 0ull) {
         return true;
       }
@@ -174,7 +171,7 @@ public:
     }
     int captured = board.en_passant - delta;
     if ((bitboard::get_bitboard(captured) & valid) != 0ull) {
-      uint64_t moves = pseudo_pawn_attacks(!board.player, board.en_passant) & pawns;
+      uint64_t moves = pseudo_pawn_attacks(!Stm, board.en_passant) & pawns;
       if (moves != 0ull &&
           !en_passant_causes_check(board, captured, bitboard::get_lsb(moves))) {
         while (moves) {
@@ -187,11 +184,23 @@ public:
 
   void all_pawn_moves(const Board &board, uint64_t pawns, uint64_t valid) {
     const uint64_t valid_attacks =
-        valid & board.get_occupied_mask(!board.player);
+        valid & board.get_occupied_mask<!Stm>();
     const uint64_t valid_quiets = valid & board.get_empty_mask();
     uint64_t moves = 0ull;
 
-    if (board.player == Player::white) {
+    constexpr int forward = Stm == Player::white ? 8 : -8;
+    constexpr int left = Stm == Player::white ? 9 : -9;
+    constexpr int right = Stm == Player::white ? 7 : -7;
+    moves = _gen.pawn_push(pawns) & valid_quiets;
+    push_pawn_moves(moves, forward);
+    moves = _gen.pawn_double_push(pawns) & valid_quiets;
+    push_pawn_moves(moves, forward * 2);
+    moves = _gen.pawn_attacks_right(pawns) & valid_attacks;
+    push_pawn_moves(moves, right);
+    moves = _gen.pawn_attacks_left(pawns) & valid_attacks;
+    push_pawn_moves(moves, left);
+    push_en_passant(board, pawns, valid, forward);
+   /* if (Stm == Player::white) {
       moves = pawns << 8 & valid_quiets;
       push_pawn_moves(moves, 8);
       moves = (pawns << 8 & board.get_empty_mask() & bitboard::rank_3) << 8 &
@@ -213,18 +222,17 @@ public:
       moves = (pawns & ~bitboard::a_file) >> 7 & valid_attacks;
       push_pawn_moves(moves, -7);
       push_en_passant(board, pawns, valid, -8);
-    }
+    }*/
   }
 
-  template <Piece Stm>
+  template <Piece P>
   void push_moves(const Board &board, uint64_t valid_piece_mask,
                   uint64_t valid) {
     uint64_t piece_mask =
-        board.get_piece_mask<Stm>(board.player) & valid_piece_mask;
+        board.get_piece_mask<Stm, P>() & valid_piece_mask;
     while (piece_mask) {
       int from_square = bitboard::pop_lsb(piece_mask);
-      uint64_t move_mask =
-          attacks_from<Stm>(from_square, board.get_occupied_mask()) & valid;
+      uint64_t move_mask = _gen.attacks_from<P>(from_square) & valid;
       while (move_mask) {
         int to_square = bitboard::pop_lsb(move_mask);
         _move_list[_size++] = {from_square, to_square, Piece::none};
@@ -234,11 +242,11 @@ public:
 
   void generate_castle_moves(const Board &board,
                              uint64_t opponent_attack_mask) {
-    int king_square = board.get_king_square(board.player);
-    if (board.can_castle_kingside(opponent_attack_mask)) {
+    int king_square = board.get_king_square<Stm>();
+    if (board.can_castle_kingside<Stm>(opponent_attack_mask)) {
       _move_list[_size++] = {king_square, king_square - 2, Piece::none};
     }
-    if (board.can_castle_queenside(opponent_attack_mask)) {
+    if (board.can_castle_queenside<Stm>(opponent_attack_mask)) {
       _move_list[_size++] = {king_square, king_square + 2, Piece::none};
     }
   }

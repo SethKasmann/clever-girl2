@@ -8,6 +8,7 @@
 #include "player.h"
 #include "piece.h"
 #include "bitboard.h"
+#include "board.h"
 
 uint64_t pseudo_pawn_moves(Player player, int square);
 uint64_t pseudo_pawn_quiets(Player player, int square);
@@ -43,7 +44,7 @@ public:
     uint64_t pawn_double_push(uint64_t mask) const noexcept
     {
         constexpr uint64_t double_mask = Stm == Player::white ? bitboard::rank_3 : bitboard::rank_6;
-        return pawn_push(pawn_push(mask) & _occupancy & double_mask);
+        return pawn_push(pawn_push(mask) & ~_occupancy & double_mask);
     }
     template<Piece P>
     uint64_t attacks_from(int square) const
@@ -63,6 +64,21 @@ public:
         case Piece::king:
             return pseudo_king_moves(square);
         }
+    }
+
+    template<Piece P>
+    uint64_t attacks_by(uint64_t pieces) const
+    {
+        if (P == Piece::pawn)
+        {
+            return pawn_attacks_left(pieces) | pawn_attacks_right(pieces);
+        }
+        uint64_t attacks = 0u;
+        while (pieces)
+        {
+            attacks |= attacks_from<P>(bitboard::pop_lsb(pieces));
+        }
+        return attacks;
     }
 };
 
