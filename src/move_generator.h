@@ -111,7 +111,7 @@ inline uint64_t pawn_attacks(Player player, uint64_t mask)
 
 inline uint64_t pawn_attacks(Player player, int square)
 {
-    return pawn_attacks(player, bitboard::get_bitboard(square));
+    return pawn_attacks(player, bitboard::to_bitboard(square));
 }
 
 template<Piece Stm> uint64_t attacks_from(int square, uint64_t occupancy);

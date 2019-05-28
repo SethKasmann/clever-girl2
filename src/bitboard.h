@@ -70,7 +70,7 @@ namespace bitboard
         return get_lsb(bitboard) / 8;
     }
 
-    inline uint64_t get_bitboard(int square)
+    inline uint64_t to_bitboard(int square)
     {
         ASSERT((square < 64), square, "Attempting to create a bitboard with a square > 63.");
         ASSERT((square >= 0), square, "Attempting to create a bitboard with a square < 0.");
@@ -85,7 +85,7 @@ namespace bitboard
 
         for (int i = 63; i >= 0; --i)
         {
-            uint64_t square_bit = get_bitboard(i);
+            uint64_t square_bit = to_bitboard(i);
             if (square_bit & a_file)
             {
                 std::cout << std::to_string(get_rank(square_bit) + 1);

@@ -51,7 +51,7 @@ void move_generator_init() {
 
   // Fill the pseudo move array.
   for (int square = 0; square < 64; ++square) {
-    const uint64_t mask = bitboard::get_bitboard(square);
+    const uint64_t mask = bitboard::to_bitboard(square);
     // Pawn moves.
     pawn_moves[Player::white][square] = (mask & ~bitboard::h_file) << 7 |
                                         (mask & ~bitboard::a_file) << 9 |

@@ -78,7 +78,7 @@ public:
       int slider = bitboard::pop_lsb(pseudo_attacks);
       if ((bitboard::between(slider, king_square) &
            board.get_occupied_mask()) == 0ull) {
-        checkers |= bitboard::get_bitboard(slider);
+        checkers |= bitboard::to_bitboard(slider);
       }
     }
     return checkers;
@@ -93,19 +93,19 @@ public:
           bitboard::between(king_square, slider_square) & board.pinned);
       Piece pinned = board.get_piece(pinned_square);
       bool is_diagonal = (pseudo_bishop_moves(pinned_square) &
-                          bitboard::get_bitboard(slider_square)) != 0ull;
+                          bitboard::to_bitboard(slider_square)) != 0ull;
 
       if (pinned == Piece::pawn) {
         uint64_t moves = is_diagonal
-                             ? bitboard::get_bitboard(slider_square)
+                             ? bitboard::to_bitboard(slider_square)
                              : bitboard::between(king_square, slider_square);
-        all_pawn_moves(board, bitboard::get_bitboard(pinned_square),
+        all_pawn_moves(board, bitboard::to_bitboard(pinned_square),
                        moves & valid);
       } else if ((pinned == Piece::bishop && is_diagonal) ||
                  (pinned == Piece::rook && !is_diagonal) ||
                  pinned == Piece::queen) {
         uint64_t moves = (bitboard::between(king_square, slider_square) |
-                          bitboard::get_bitboard(slider_square)) &
+                          bitboard::to_bitboard(slider_square)) &
                          valid;
         while (moves) {
           _move_list[_size++] = {pinned_square, bitboard::pop_lsb(moves),
@@ -148,7 +148,7 @@ public:
       return true;
     }
     uint64_t new_occupancy =
-        board.get_occupied_mask() ^ bitboard::get_bitboard(from);
+        board.get_occupied_mask() ^ bitboard::to_bitboard(from);
     // Confirm removing the attacking pawn and captured pawn doesn't
     // create a slider checker along the same rank.
     if (board.on_same_row(king_square, from) &&
@@ -170,7 +170,7 @@ public:
       return;
     }
     int captured = board.en_passant - delta;
-    if ((bitboard::get_bitboard(captured) & valid) != 0ull) {
+    if ((bitboard::to_bitboard(captured) & valid) != 0ull) {
       uint64_t moves = pseudo_pawn_attacks(!Stm, board.en_passant) & pawns;
       if (moves != 0ull &&
           !en_passant_causes_check(board, captured, bitboard::get_lsb(moves))) {
@@ -193,36 +193,17 @@ public:
     constexpr int right = Stm == Player::white ? 7 : -7;
     moves = _gen.pawn_push(pawns) & valid_quiets;
     push_pawn_moves(moves, forward);
+
     moves = _gen.pawn_double_push(pawns) & valid_quiets;
     push_pawn_moves(moves, forward * 2);
+
     moves = _gen.pawn_attacks_right(pawns) & valid_attacks;
     push_pawn_moves(moves, right);
+
     moves = _gen.pawn_attacks_left(pawns) & valid_attacks;
     push_pawn_moves(moves, left);
+
     push_en_passant(board, pawns, valid, forward);
-   /* if (Stm == Player::white) {
-      moves = pawns << 8 & valid_quiets;
-      push_pawn_moves(moves, 8);
-      moves = (pawns << 8 & board.get_empty_mask() & bitboard::rank_3) << 8 &
-              valid_quiets;
-      push_pawn_moves(moves, 16);
-      moves = (pawns & ~bitboard::h_file) << 7 & valid_attacks;
-      push_pawn_moves(moves, 7);
-      moves = (pawns & ~bitboard::a_file) << 9 & valid_attacks;
-      push_pawn_moves(moves, 9);
-      push_en_passant(board, pawns, valid, 8);
-    } else {
-      moves = pawns >> 8 & valid_quiets;
-      push_pawn_moves(moves, -8);
-      moves = (pawns >> 8 & board.get_empty_mask() & bitboard::rank_6) >> 8 &
-              valid_quiets;
-      push_pawn_moves(moves, -16);
-      moves = (pawns & ~bitboard::h_file) >> 9 & valid_attacks;
-      push_pawn_moves(moves, -9);
-      moves = (pawns & ~bitboard::a_file) >> 7 & valid_attacks;
-      push_pawn_moves(moves, -7);
-      push_en_passant(board, pawns, valid, -8);
-    }*/
   }
 
   template <Piece P>

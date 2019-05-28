@@ -55,12 +55,12 @@ namespace bitboard
     {
         for (int i = 0; i < 64; ++i)
         {
-            uint64_t i_mask = get_bitboard(i);
+            uint64_t i_mask = to_bitboard(i);
             rook_attacks[i] = Rmagic(i, 0ull);
             bishop_attacks[i] = Bmagic(i, 0ull);
             for (int j = 0; j < 64; ++j)
             {
-                uint64_t j_mask = get_bitboard(j);
+                uint64_t j_mask = to_bitboard(j);
                 // Set the between mask. QMagic cannot be used - two bits on the same horizonal plane may share
                 // diagonal bits and vice versa.
                 between_mask[i][j] = 0ull;

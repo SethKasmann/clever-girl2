@@ -42,7 +42,7 @@ Piece Board::get_piece(int square) const
 
 void Board::put_piece(Player player, Piece piece, int square)
 {
-    uint64_t square_bit = bitboard::get_bitboard(square);
+    uint64_t square_bit = bitboard::to_bitboard(square);
     occupancy[player] |= square_bit;
     pieces[piece] |= square_bit;
     board[square] = piece;
@@ -51,7 +51,7 @@ void Board::put_piece(Player player, Piece piece, int square)
 
 void Board::remove_piece(Player player, int square)
 {
-    uint64_t square_bit = bitboard::get_bitboard(square);
+    uint64_t square_bit = bitboard::to_bitboard(square);
     Piece piece = board[square];
     occupancy[player] ^= square_bit;
     pieces[piece] ^= square_bit;
@@ -346,7 +346,7 @@ void Board::set_pins()
         uint64_t between = bitboard::between(slider, king_square) & get_occupied_mask();
         if (between & get_occupied_mask<Stm>() && bitboard::pop_count(between) == 1)
         {
-            pinners |= bitboard::get_bitboard(slider);
+            pinners |= bitboard::to_bitboard(slider);
             pinned |= between;
         }
     }
@@ -357,7 +357,7 @@ bool Board::is_valid() const
     int issues = 0;
     for (int i = 0; i < 64; ++i)
     {
-        uint64_t bit_mask = bitboard::get_bitboard(i);
+        uint64_t bit_mask = bitboard::to_bitboard(i);
         if (occupancy[Player::white] & bit_mask && occupancy[Player::black] & bit_mask)
         {
             std::cout << ++issues << ". Occupancy mask is set for both players at square " << i << ".\n";
@@ -427,7 +427,7 @@ std::ostream& operator<<(std::ostream& o, Board board)
 
     for (int square = 63; square >= 0; --square)
     {
-        uint64_t square_bit = bitboard::get_bitboard(square);
+        uint64_t square_bit = bitboard::to_bitboard(square);
         if (square_bit & bitboard::a_file)
         {
             o << std::to_string(bitboard::get_rank(square_bit) + 1);
@@ -463,7 +463,7 @@ std::ostream& operator<<(std::ostream& o, Board board)
         {
             for (int file = 7; file >= 0; --file)
             {
-                uint64_t bit = bitboard::get_bitboard(rank * 8 + file);
+                uint64_t bit = bitboard::to_bitboard(rank * 8 + file);
                 std::cout << std::noboolalpha << ((board.pieces[piece] & bit) != 0ull);
             }
             std::cout << std::setw(4) << std::cout.fill(' ');
