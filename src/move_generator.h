@@ -43,8 +43,7 @@ public:
     }
     uint64_t pawn_double_push(uint64_t mask) const noexcept
     {
-        constexpr uint64_t double_mask = Stm == Player::white ? bitboard::rank_3 : bitboard::rank_6;
-        return pawn_push(pawn_push(mask) & ~_occupancy & double_mask);
+        return pawn_push(pawn_push(mask) & ~_occupancy & PlayerTraits<Stm>::double_mask);
     }
     template<Piece P>
     uint64_t attacks_from(int square) const
@@ -139,6 +138,23 @@ template<> inline uint64_t attacks_from<Piece::queen>(int square, uint64_t occup
 template<> inline uint64_t attacks_from<Piece::king>(int square, uint64_t occupancy)
 {
     return pseudo_king_moves(square);
+}
+
+template<Piece Stm> uint64_t pseudo_attacks_from(int square);
+
+template<> inline uint64_t pseudo_attacks_from<Piece::bishop>(int square)
+{
+    return pseudo_bishop_moves(square);
+}
+
+template<> inline uint64_t pseudo_attacks_from<Piece::rook>(int square)
+{
+    return pseudo_rook_moves(square);
+}
+
+template<> inline uint64_t pseudo_attacks_from<Piece::queen>(int square)
+{
+    return pseudo_queen_moves(square);
 }
 
 void move_generator_init();

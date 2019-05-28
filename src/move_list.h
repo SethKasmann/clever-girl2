@@ -11,8 +11,6 @@
 #include "move.h"
 #include "move_generator.h"
 
-constexpr uint64_t promotion_mask = bitboard::rank_1 | bitboard::rank_8;
-
 template<Player Stm>
 class MoveList {
 private:
@@ -26,7 +24,7 @@ public:
     uint64_t valid_pieces = board.get_occupied_mask<Stm>() & ~board.pinned;
     uint64_t valid_moves = ~board.get_occupied_mask<Stm>();
     push_moves<Piece::king>(board, valid_pieces,
-                            valid_moves & ~attacked_squares);
+                            valid_moves & ~attacked_squares, PieceTraits<Piece::king>::type{});
 
     if ((attacked_squares & board.get_piece_mask<Stm, Piece::king>()) !=
         0ull) {
@@ -47,10 +45,10 @@ public:
 
     // Normal Moves.
     all_pawn_moves(board, board.get_piece_mask<Stm, Piece::pawn>() & valid_pieces, valid_moves);
-    push_moves<Piece::knight>(board, valid_pieces, valid_moves);
-    push_moves<Piece::bishop>(board, valid_pieces, valid_moves);
-    push_moves<Piece::rook>(board, valid_pieces, valid_moves);
-    push_moves<Piece::queen>(board, valid_pieces, valid_moves);
+    push_moves<Piece::knight>(board, valid_pieces, valid_moves, PieceTraits<Piece::knight>::type{});
+    push_moves<Piece::bishop>(board, valid_pieces, valid_moves, PieceTraits<Piece::bishop>::type{});
+    push_moves<Piece::rook>(board, valid_pieces, valid_moves, PieceTraits<Piece::rook>::type{});
+    push_moves<Piece::queen>(board, valid_pieces, valid_moves, PieceTraits<Piece::queen>::type{});
   }
 
   size_t size() const { return _size; }
@@ -117,7 +115,7 @@ public:
 
   void push_pawn_moves(uint64_t mask, int delta) {
     // Add pawn promotions to the move list.
-    uint64_t move_mask = mask & promotion_mask;
+    uint64_t move_mask = mask & PlayerTraits<Stm>::promotion_mask;
     while (move_mask) {
       int to_square = bitboard::pop_lsb(move_mask);
       int from_square = to_square - delta;
@@ -129,7 +127,7 @@ public:
     }
 
     // Add non promotions to the move list.
-    move_mask = mask & ~promotion_mask;
+    move_mask = mask & ~PlayerTraits<Stm>::promotion_mask;
     while (move_mask) {
       int square = bitboard::pop_lsb(move_mask);
       _move_list[_size++] = {square - delta, square, Piece::none};
@@ -188,27 +186,46 @@ public:
     const uint64_t valid_quiets = valid & board.get_empty_mask();
     uint64_t moves = 0ull;
 
-    constexpr int forward = Stm == Player::white ? 8 : -8;
-    constexpr int left = Stm == Player::white ? 9 : -9;
-    constexpr int right = Stm == Player::white ? 7 : -7;
     moves = _gen.pawn_push(pawns) & valid_quiets;
-    push_pawn_moves(moves, forward);
+    push_pawn_moves(moves, PlayerTraits<Stm>::forward);
 
     moves = _gen.pawn_double_push(pawns) & valid_quiets;
-    push_pawn_moves(moves, forward * 2);
+    push_pawn_moves(moves, PlayerTraits<Stm>::forward * 2);
 
     moves = _gen.pawn_attacks_right(pawns) & valid_attacks;
-    push_pawn_moves(moves, right);
+    push_pawn_moves(moves, PlayerTraits<Stm>::right);
 
     moves = _gen.pawn_attacks_left(pawns) & valid_attacks;
-    push_pawn_moves(moves, left);
+    push_pawn_moves(moves, PlayerTraits<Stm>::left);
 
-    push_en_passant(board, pawns, valid, forward);
+    push_en_passant(board, pawns, valid, PlayerTraits<Stm>::forward);
+  }
+
+  // Maybe just something to get the moves... ?
+
+  template<Piece P>
+  void push_moves(const Board& board, uint64_t valid_piece_mask, uint64_t valid, Slider)
+  {
+    uint64_t piece_mask =
+        board.get_piece_mask<Stm, P>() & valid_piece_mask;
+    while (piece_mask)
+    {
+        int from_square = bitboard::pop_lsb(piece_mask);
+        if ((pseudo_attacks_from<P>(from_square) & valid) == 0u)
+        {
+            continue;
+        }
+        uint64_t move_mask = _gen.attacks_from<P>(from_square) & valid;
+        while (move_mask) {
+            int to_square = bitboard::pop_lsb(move_mask);
+            _move_list[_size++] = { from_square, to_square, Piece::none };
+        }
+    }
   }
 
   template <Piece P>
   void push_moves(const Board &board, uint64_t valid_piece_mask,
-                  uint64_t valid) {
+                  uint64_t valid, NonSlider) {
     uint64_t piece_mask =
         board.get_piece_mask<Stm, P>() & valid_piece_mask;
     while (piece_mask) {
