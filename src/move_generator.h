@@ -142,6 +142,11 @@ template<> inline uint64_t attacks_from<Piece::king>(int square, uint64_t occupa
 
 template<Piece Stm> uint64_t pseudo_attacks_from(int square);
 
+template<> inline uint64_t pseudo_attacks_from<Piece::knight>(int square)
+{
+    return pseudo_knight_moves(square);
+}
+
 template<> inline uint64_t pseudo_attacks_from<Piece::bishop>(int square)
 {
     return pseudo_bishop_moves(square);
@@ -155,6 +160,11 @@ template<> inline uint64_t pseudo_attacks_from<Piece::rook>(int square)
 template<> inline uint64_t pseudo_attacks_from<Piece::queen>(int square)
 {
     return pseudo_queen_moves(square);
+}
+
+template<> inline uint64_t pseudo_attacks_from<Piece::king>(int square)
+{
+    return pseudo_king_moves(square);
 }
 
 void move_generator_init();

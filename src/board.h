@@ -35,8 +35,8 @@ struct Unmake
     int en_passant;
     unsigned castle_rights;
     uint64_t key;
-    uint64_t pinned;
-    uint64_t pinners;
+   /* uint64_t pinned;
+    uint64_t pinners;*/
 };
 
 struct Board
@@ -53,33 +53,22 @@ struct Board
     int fullmove_number;
     std::vector<Unmake> unmake_stack;
     uint64_t key;
-    uint64_t pinners;
-    uint64_t pinned;
+    /*uint64_t pinners;
+    uint64_t pinned;*/
 
     template<Piece... P>
-    uint64_t get_piece_mask() const noexcept
+    constexpr uint64_t get_piece_mask() const noexcept
     {
         static_assert(((P >= Piece::pawn && P <= Piece::king) && ...));
         return (std::get<P>(pieces) | ...);
     }
 
-    /*template<Piece... P>
-    uint64_t get_piece_mask(Player player) const
-    {
-        return occupancy[player] & get_piece_mask<P...>();
-    }*/
-
     template<Player Stm, Piece... P>
-    uint64_t get_piece_mask() const
+    constexpr uint64_t get_piece_mask() const noexcept
     {
+        static_assert(Stm == Player::white || Stm == Player::black);
         return std::get<Stm>(occupancy) & get_piece_mask<P...>();
     }
-
-    /*template<Player Stm>
-    uint64_t get_piece_mask() const noexcept
-    {
-        return std::get<Stm>(occupancy);
-    }*/
 
     template<Player Stm>
     int get_king_square() const
@@ -117,6 +106,7 @@ struct Board
     {
         return square0 / 8 == square1 / 8;
     }
+    void pretty() const;
     friend std::ostream& operator<<(std::ostream& o, Board board);
 };
 

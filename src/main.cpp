@@ -13,7 +13,8 @@ int main(int argc, char* argv[])
     move_generator_init();
     bitboard::init();
     hash_init();
-    perft_fast();
+    speed();
+    //perft_fast();
     int z;
     std::cin >> z;
     return 0;
