@@ -41,7 +41,7 @@ template <Player P> bool Board::is_player(int square) const noexcept {
 
 void Board::put_piece(Player player, Piece piece, int square) {
   uint64_t square_bit = bitboard::to_bitboard(square);
-  occupancy[player] |= square_bit;
+  occupancy[static_cast<int>(player)] |= square_bit;
   pieces[piece] |= square_bit;
   board[square] = piece;
   set_key(key, player, piece, square);
@@ -50,14 +50,10 @@ void Board::put_piece(Player player, Piece piece, int square) {
 void Board::remove_piece(Player player, int square) {
   uint64_t square_bit = bitboard::to_bitboard(square);
   Piece piece = board[square];
-  occupancy[player] ^= square_bit;
+  occupancy[static_cast<int>(player)] ^= square_bit;
   pieces[piece] ^= square_bit;
   board[square] = Piece::none;
   set_key(key, player, piece, square);
-}
-
-uint64_t Board::get_occupied_mask(Player player) const {
-  return occupancy[player];
 }
 
 template <Player Stm> uint64_t Board::get_occupied_mask() const noexcept {
@@ -68,8 +64,8 @@ template uint64_t Board::get_occupied_mask<Player::white>() const noexcept;
 template uint64_t Board::get_occupied_mask<Player::black>() const noexcept;
 
 uint64_t Board::get_occupied_mask() const noexcept {
-  return std::get<Player::white>(occupancy) |
-         std::get<Player::black>(occupancy);
+  return std::get<static_cast<int>(Player::white)>(occupancy) |
+         std::get<static_cast<int>(Player::black)>(occupancy);
 }
 
 uint64_t Board::get_empty_mask() const noexcept {
@@ -340,8 +336,8 @@ bool Board::is_valid() const {
   int issues = 0;
   for (int i = 0; i < 64; ++i) {
     uint64_t bit_mask = bitboard::to_bitboard(i);
-    if (occupancy[Player::white] & bit_mask &&
-        occupancy[Player::black] & bit_mask) {
+    if (occupancy[static_cast<int>(Player::white)] & bit_mask &&
+        occupancy[static_cast<int>(Player::black)] & bit_mask) {
       std::cout << ++issues
                 << ". Occupancy mask is set for both players at square " << i
                 << ".\n";
@@ -365,7 +361,7 @@ bool Board::is_valid() const {
       }
     } else {
       Player current_player = static_cast<Player>(
-          static_cast<bool>(get_occupied_mask(Player::black) & bit_mask));
+          static_cast<bool>(get_occupied_mask<Player::black>() & bit_mask));
       if (!(pieces[piece_on_board] & bit_mask)) {
         std::cout << ++issues << ". Board piece " << piece_on_board
                   << " is not on piece mask at square " << i << ".\n";
@@ -402,18 +398,18 @@ bool Board::is_valid() const {
   return issues == 0;
 }
 
-void Board::pretty() const {
+std::ostream &operator<<(std::ostream &o, Board board) {
   std::cout << "  ABCDEFGH\n";
   for (int rank = 7; rank >= 0; --rank) {
     std::cout << rank + 1 << '|';
     for (int file = 7; file >= 0; --file) {
       int square = rank * 8 + file;
-      Player p = (get_occupied_mask<Player::white>() &
+      Player p = (board.get_occupied_mask<Player::white>() &
                   bitboard::to_bitboard(square)) != 0u
                      ? Player::white
                      : Player::black;
-      Piece piece = get_piece(square);
-      switch (get_piece(square)) {
+      Piece piece = board.get_piece(square);
+      switch (board.get_piece(square)) {
       case Piece::pawn:
         std::cout << (p == Player::white ? 'P' : 'p');
         break;
@@ -440,30 +436,30 @@ void Board::pretty() const {
     std::cout << '|' << rank + 1;
     switch (rank) {
     case 7:
-      std::cout << std::setw(18) << "side to move: " << player << '\n';
+      std::cout << std::setw(18) << "side to move: " << board.player << '\n';
       break;
     case 6:
       std::cout << std::setw(18) << "castle rights: ";
-      if (castle_rights & kingside_castle_white) {
+      if (board.castle_rights & kingside_castle_white) {
         std::cout << "K";
       }
-      if (castle_rights & queenside_castle_white) {
+      if (board.castle_rights & queenside_castle_white) {
         std::cout << "Q";
       }
-      if (castle_rights & kingside_castle_black) {
+      if (board.castle_rights & kingside_castle_black) {
         std::cout << "k";
       }
-      if (castle_rights & queenside_castle_black) {
+      if (board.castle_rights & queenside_castle_black) {
         std::cout << "q";
       }
       std::cout << '\n';
       break;
     case 5:
       std::cout << std::setw(18) << "en-passant: ";
-      if (en_passant == 0) {
+      if (board.en_passant == 0) {
         std::cout << "-\n";
       } else {
-        std::cout << en_passant << '\n';
+        std::cout << board.en_passant << '\n';
       }
       break;
     default:
@@ -471,80 +467,5 @@ void Board::pretty() const {
       break;
     }
   }
-  std::cout << "  ABCDEFGH\n";
-}
-
-std::ostream &operator<<(std::ostream &o, Board board) {
-  const std::array<const std::array<char, 7>, 2> piece_chars{
-      {{' ', 'P', 'N', 'B', 'R', 'Q', 'K'},
-       {' ', 'p', 'n', 'b', 'r', 'q', 'k'}}};
-
-  const std::string bar = " +---+---+---+---+---+---+---+---+";
-
-  o << "<Board " << &board << std::endl << bar << std::endl;
-
-  for (int square = 63; square >= 0; --square) {
-    uint64_t square_bit = bitboard::to_bitboard(square);
-    if (square_bit & bitboard::a_file) {
-      o << std::to_string(bitboard::get_rank(square_bit) + 1);
-    }
-    o << '|'
-      << (square == board.en_passant && board.en_passant > 0 ? '*' : ' ');
-    if (square_bit & board.get_empty_mask()) {
-      o << "  ";
-    } else {
-      Player player =
-          square_bit & board.occupancy[0] ? Player::white : Player::black;
-      o << piece_chars[player][board.get_piece(square)] << ' ';
-    }
-    if (square_bit & bitboard::h_file) {
-      o << '|' << std::endl << bar << std::endl;
-    }
-  }
-
-  o << "  A   B   C   D   E   F   G   H"
-    << "\n\n";
-
-  for (int piece = static_cast<int>(Piece::pawn);
-       piece <= static_cast<int>(Piece::king); ++piece) {
-    o << std::setw(8) << std::left << piece_chars[Player::white][piece]
-      << std::setw(4) << std::cout.fill(' ');
-  }
-
-  o << std::endl;
-
-  for (int rank = 7; rank >= 0; --rank) {
-    for (int piece = static_cast<int>(Piece::pawn);
-         piece <= static_cast<int>(Piece::king); ++piece) {
-      for (int file = 7; file >= 0; --file) {
-        uint64_t bit = bitboard::to_bitboard(rank * 8 + file);
-        std::cout << std::noboolalpha << ((board.pieces[piece] & bit) != 0ull);
-      }
-      std::cout << std::setw(4) << std::cout.fill(' ');
-    }
-    std::cout << std::endl;
-  }
-
-  o << std::endl << std::setw(20) << "player: " << board.player << '\n';
-
-  o << std::setw(20) << "castle_rights: ";
-  if (board.castle_rights & 1ull) {
-    o << "K";
-  }
-  if (board.castle_rights & 1ull << 1) {
-    o << "Q";
-  }
-  if (board.castle_rights & 1ull << 2) {
-    o << "k";
-  }
-  if (board.castle_rights & 1ull << 3) {
-    o << "q";
-  }
-
-  o << '\n'
-    << std::setw(20) << "en_passant: " << board.en_passant << '\n'
-    << std::setw(20) << "halfmove_clock: " << board.halfmove_clock << '\n'
-    << std::setw(20) << "fullmove_number: " << board.fullmove_number << '>';
-
-  return o;
+  std::cout << "  ABCDEFGH";
 }

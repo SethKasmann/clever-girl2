@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-enum Player
+enum class Player
 {
     white,
     black

@@ -67,7 +67,7 @@ struct Board
     constexpr uint64_t get_piece_mask() const noexcept
     {
         static_assert(Stm == Player::white || Stm == Player::black);
-        return std::get<Stm>(occupancy) & get_piece_mask<P...>();
+        return std::get<static_cast<int>(Stm)>(occupancy) & get_piece_mask<P...>();
     }
 
     template<Player Stm>

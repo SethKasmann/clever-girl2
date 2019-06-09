@@ -285,7 +285,7 @@ inline void speed_test(std::vector<PerftTest> &tests) {
 
   for (auto &test : tests) {
     Board board = fen::create_board(test.get_fen());
-    board.pretty();
+    std::cout << board << '\n';
     for (int depth = 1; depth <= test.get_depth(); ++depth) {
       std::cout << std::setfill('.') << std::right << std::setw(10) << "depth "
                 << std::left << std::setw(4) << depth;

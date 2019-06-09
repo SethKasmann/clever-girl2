@@ -11,7 +11,7 @@ static uint64_t rook_moves[64];
 static uint64_t king_moves[64];
 
 uint64_t pseudo_pawn_moves(Player player, int square) {
-  return pawn_moves[player][square];
+  return pawn_moves[static_cast<int>(player)][square];
 }
 
 uint64_t pseudo_pawn_quiets(Player player, int square) {
@@ -53,17 +53,17 @@ void move_generator_init() {
   for (int square = 0; square < 64; ++square) {
     const uint64_t mask = bitboard::to_bitboard(square);
     // Pawn moves.
-    pawn_moves[Player::white][square] = (mask & ~bitboard::h_file) << 7 |
+    pawn_moves[static_cast<int>(Player::white)][square] = (mask & ~bitboard::h_file) << 7 |
                                         (mask & ~bitboard::a_file) << 9 |
                                         mask << 8;
-    pawn_moves[Player::black][square] = (mask & ~bitboard::h_file) >> 9 |
+    pawn_moves[static_cast<int>(Player::black)][square] = (mask & ~bitboard::h_file) >> 9 |
                                         (mask & ~bitboard::a_file) >> 7 |
                                         mask >> 8;
     if (mask & bitboard::rank_2) {
-      pawn_moves[Player::white][square] |= mask << 16;
+      pawn_moves[static_cast<int>(Player::white)][square] |= mask << 16;
     }
     if (mask & bitboard::rank_7) {
-      pawn_moves[Player::white][square] |= mask >> 16;
+      pawn_moves[static_cast<int>(Player::white)][square] |= mask >> 16;
     }
     // Knight moves.
     knight_moves[square] =
