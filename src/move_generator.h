@@ -26,42 +26,51 @@ private:
     uint64_t _occupancy;
 public:
     MoveGen() = default;
-    explicit MoveGen(uint64_t occupancy)
+    explicit MoveGen(uint64_t occupancy) noexcept
         : _occupancy(occupancy)
     {}
     uint64_t pawn_attacks_left(uint64_t mask) const noexcept
     {
-        return Stm == Player::white ? (mask & ~bitboard::a_file) << 9 : (mask & ~bitboard::h_file) >> 9;
+        return _occupancy & (Stm == Player::white ? (mask & ~bitboard::a_file) << 9 : (mask & ~bitboard::h_file) >> 9);
     }
     uint64_t pawn_attacks_right(uint64_t mask) const noexcept
     {
-        return Stm == Player::white ? (mask & ~bitboard::h_file) << 7 : (mask & ~bitboard::a_file) >> 7;
+        return _occupancy & (Stm == Player::white ? (mask & ~bitboard::h_file) << 7 : (mask & ~bitboard::a_file) >> 7);
     }
     uint64_t pawn_push(uint64_t mask) const noexcept
     {
-        return Stm == Player::white ? mask << 8 : mask >> 8;
+        return ~_occupancy & (Stm == Player::white ? mask << 8 : mask >> 8);
     }
     uint64_t pawn_double_push(uint64_t mask) const noexcept
     {
-        return pawn_push(pawn_push(mask) & ~_occupancy & PlayerTraits<Stm>::double_mask);
+        return ~_occupancy & (pawn_push(pawn_push(mask) & ~_occupancy & PlayerTraits<Stm>::double_mask));
     }
     template<Piece P>
-    uint64_t attacks_from(int square) const
+    uint64_t attacks_from(int square, uint64_t valid=ULONG_MAX) const
     {
         switch (P)
         {
         case Piece::pawn:
-            return pseudo_pawn_attacks(Stm, square);
+            return pseudo_pawn_attacks(Stm, square) & valid;
         case Piece::knight:
-            return pseudo_knight_moves(square);
+            return pseudo_knight_moves(square) & valid;
         case Piece::bishop:
-            return Bmagic(square, _occupancy);
+            if ((pseudo_bishop_moves(square) & valid) == 0u) {
+                return 0u;
+            }
+            return Bmagic(square, _occupancy) & valid;
         case Piece::rook:
-            return Rmagic(square, _occupancy);
+            if ((pseudo_rook_moves(square) & valid) == 0u) {
+                return 0u;
+            }
+            return Rmagic(square, _occupancy) & valid;
         case Piece::queen:
-            return Qmagic(square, _occupancy);
+            if ((pseudo_queen_moves(square) & valid) == 0u) {
+                return 0u;
+            }
+            return Qmagic(square, _occupancy) & valid;
         case Piece::king:
-            return pseudo_king_moves(square);
+            return pseudo_king_moves(square) & valid;
         }
     }
 

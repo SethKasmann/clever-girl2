@@ -77,6 +77,11 @@ namespace bitboard
         return 1ull << square;
     }
 
+    template<class... Args>
+    inline uint64_t to_bitboard(Args... args) {
+        return (to_bitboard(args) | ...);
+    }
+
     inline void pretty(uint64_t bitboard)
     {
         const std::string bar = " +---+---+---+---+---+---+---+---+";

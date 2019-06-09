@@ -82,6 +82,8 @@ struct Board
     }*/
 
     Piece get_piece(int square) const;
+    template<Player P>
+    bool is_player(int square) const noexcept;
     void put_piece(Player player, Piece piece, int square);
     void remove_piece(Player player, int square);
     template<Player Stm>

@@ -35,7 +35,17 @@ static std::vector<std::string> perft_fast_vec = {
     "8/P1k5/K7/8/8/8/8/8 w - - 0 1 6 92683",
     "K1k5/8/P7/8/8/8/8/8 w - - 0 1 6 2217",
     "8/k1P5/8/1K6/8/8/8/8 w - - 0 1 7 567584",
-    "8/8/2k5/5q2/5n2/8/5K2/8 b - - 0 1 4 23527"};
+    "8/8/2k5/5q2/5n2/8/5K2/8 b - - 0 1 4 23527",
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 5 193690690",
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 7 178633661",
+    "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1 5 15833292",
+    "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1 5 15833292",
+    "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8 5 89941194",
+    "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10 5 164075551",
+    "rnb1kbnr/pp1pp1pp/1qp2p2/8/Q1P5/N7/PP1PPPPP/1RB1KBNR b Kkq - 2 4 6 490103130",
+    "r3k2r/1bp2pP1/5n2/1P1Q4/1pPq4/5N2/1B1P2p1/R3K2R b KQkq c3 0 1 5 202902054",
+    "rnbqkb1r/pp1p1ppp/2p5/4P3/2B5/8/PPP1NnPP/RNBQK2R w KQkq - 0 6 5 70202861"
+};
 
 static std::vector<std::string> perft_extensive_vec = {
     "rnbqkbnr/pppppppp/8/8/8/N7/PPPPPPPP/R1BQKBNR b KQkq - 1 1 9 2440848135252",
@@ -124,13 +134,13 @@ public:
   bool passed() const { return _nodes_expected == _nodes; }
 };
 
-int ep = 0;
-int captures = 0;
-int castles = 0;
-int promotions = 0;
-int checks = 0;
-int checkmates = 0;
-int double_checks = 0;
+// int ep = 0;
+// int captures = 0;
+// int castles = 0;
+// int promotions = 0;
+// int checks = 0;
+// int checkmates = 0;
+// int double_checks = 0;
 
 #include "move_generator.h"
 
@@ -277,8 +287,8 @@ inline void speed_test(std::vector<PerftTest> &tests) {
     Board board = fen::create_board(test.get_fen());
     board.pretty();
     for (int depth = 1; depth <= test.get_depth(); ++depth) {
-      std::cout << std::setfill('.') << std::right << std::setw(10) << "depth " << std::left
-                << std::setw(4) << depth;
+      std::cout << std::setfill('.') << std::right << std::setw(10) << "depth "
+                << std::left << std::setw(4) << depth;
 
       Clock clock;
       uint64_t nodes = board.player == Player::white

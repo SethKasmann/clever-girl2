@@ -23,11 +23,16 @@ inline bool operator!=(const Move& m1, const Move& m2)
     return !(m1 == m2);
 }
 
-inline std::ostream& operator<<(std::ostream& o, const Move& move)
-{
-    o << "<Move " << &move << " from: " << move.from << " to: " << move.to << " promotion: " << move.promotion << ">";
+inline std::ostream& operator<<(std::ostream& o, const Move& move) {
+    o << static_cast<char>('h' - (move.from % 8)) << move.from / 8 + 1 << static_cast<char>('h' - (move.to % 8)) << move.to / 8 + 1;
     return o;
 }
+
+//inline std::ostream& operator<<(std::ostream& o, const Move& move)
+//{
+//    o << "<Move " << &move << " from: " << move.from << " to: " << move.to << " promotion: " << move.promotion << ">";
+//    return o;
+//}
 
 
 #endif

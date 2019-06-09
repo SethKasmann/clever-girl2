@@ -35,6 +35,10 @@ void Board::init() {
 
 Piece Board::get_piece(int square) const { return board[square]; }
 
+template <Player P> bool Board::is_player(int square) const noexcept {
+  return (get_occupied_mask<P>() & bitboard::to_bitboard(square)) != 0u;
+}
+
 void Board::put_piece(Player player, Piece piece, int square) {
   uint64_t square_bit = bitboard::to_bitboard(square);
   occupancy[player] |= square_bit;
@@ -408,6 +412,7 @@ void Board::pretty() const {
                   bitboard::to_bitboard(square)) != 0u
                      ? Player::white
                      : Player::black;
+      Piece piece = get_piece(square);
       switch (get_piece(square)) {
       case Piece::pawn:
         std::cout << (p == Player::white ? 'P' : 'p');
@@ -454,9 +459,12 @@ void Board::pretty() const {
       std::cout << '\n';
       break;
     case 5:
-      std::cout << std::setw(18)
-                << "en-passant: " << (en_passant == 0 ? '-' : en_passant)
-                << '\n';
+      std::cout << std::setw(18) << "en-passant: ";
+      if (en_passant == 0) {
+        std::cout << "-\n";
+      } else {
+        std::cout << en_passant << '\n';
+      }
       break;
     default:
       std::cout << '\n';
